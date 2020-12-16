@@ -71,7 +71,6 @@ def str_variable(name, value):
 def _read_parameter(parameters, parameter_description, default_value):
     """
     get a parameter value from a (already read parameter file)
-    :param self:
     :param parameters:
     :param parameter_description:
     :param default_value:
@@ -87,6 +86,7 @@ def _read_parameter(parameters, parameter_description, default_value):
     if hasattr(parameters, parameter_description):
         returned_attr = getattr(parameters, parameter_description)
     return returned_attr
+
 
 ##################################################
 #
@@ -1408,7 +1408,7 @@ class MarsSubdirectory(GenericSubdirectory):
         logfile.write(str_variable('EXP_MARS', self._sub_directory_suffix) + '\n')
         return
 
-    def  update_from_parameters(self, parameters):
+    def update_from_parameters(self, parameters):
         if hasattr(parameters, 'EXP_SEG'):
             if parameters.EXP_SEG is not None:
                 self._sub_directory_suffix = parameters.EXP_SEG
@@ -2242,7 +2242,6 @@ class RegistrationParameters(PrefixedParameter):
         parameters = imp.load_source('*', parameter_file)
         self.update_from_parameters(parameters)
 
-
     ############################################################
     #
     #
@@ -2540,9 +2539,11 @@ def find_file(data_path, file_prefix, file_type=None, callfrom=None, local_monit
 
     :param data_path:
     :param file_prefix:
+    :param file_type:
+    :param callfrom:
     :param local_monitoring:
     :param verbose:
-    :param callfrom:
+
     :return:
     """
     proc = "find_file"
@@ -2572,10 +2573,13 @@ def find_file(data_path, file_prefix, file_type=None, callfrom=None, local_monit
     # if there is any extension, remove if from the file_prefix length
     # recall that the '.' is part of the extension
     #
-    if file_type.lower() == 'lineage':
-        extension = get_lineage_extension(file_prefix)
-    elif file_type.lower() == 'image':
-        extension = get_image_extension(file_prefix)
+    extension = None
+    if file_type is not None:
+        if file_type.lower() == 'lineage':
+            extension = get_lineage_extension(file_prefix)
+        elif file_type.lower() == 'image':
+            extension = get_image_extension(file_prefix)
+
     if extension is not None:
         length_file_prefix = len(file_prefix) - len(extension)
     else:
@@ -2588,18 +2592,22 @@ def find_file(data_path, file_prefix, file_type=None, callfrom=None, local_monit
     for f in os.listdir(data_path):
         if len(f) <= length_file_prefix:
             pass
-        if f[0:length_file_prefix] == file_prefix[0:length_file_prefix] and f[length_file_prefix] == '.':
-            prefixedfilenames.append(f)
+        if f[0:length_file_prefix] == file_prefix[0:length_file_prefix]:
+            if extension is None:
+                prefixedfilenames.append(f)
+            elif f[length_file_prefix] == '.':
+                prefixedfilenames.append(f)
 
     filenames = []
-    if file_type.lower() == 'lineage':
-        for f in prefixedfilenames:
-            if f[length_file_prefix:] in recognized_lineage_extensions:
-                filenames.append(f)
-    elif file_type.lower() == 'image':
-        for f in prefixedfilenames:
-            if f[length_file_prefix:] in recognized_image_extensions:
-                filenames.append(f)
+    if file_type is not None:
+        if file_type.lower() == 'lineage':
+            for f in prefixedfilenames:
+                if f[length_file_prefix:] in recognized_lineage_extensions:
+                    filenames.append(f)
+        elif file_type.lower() == 'image':
+            for f in prefixedfilenames:
+                if f[length_file_prefix:] in recognized_image_extensions:
+                    filenames.append(f)
     else:
         filenames = prefixedfilenames
 

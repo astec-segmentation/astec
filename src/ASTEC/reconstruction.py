@@ -128,8 +128,6 @@ class ReconstructionParameters(ace.AceParameters):
         self.varwrite(logfile, 'normalization_max_percentile', self.normalization_max_percentile)
         self.varwrite(logfile, 'cell_normalization_sigma', self.cell_normalization_sigma)
 
-        self.varwrite(logfile, 'intensity_transformation', self.intensity_transformation)
-
         for p in self.registration:
             p.write_parameters_in_file(logfile)
 
