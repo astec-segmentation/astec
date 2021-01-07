@@ -10,10 +10,19 @@ from ImageHandling import imread, imsave, SpatialImage
 import pickle as pkl
 from lineage import read_lineage_tree,write_lineage_tree,timesNamed
 
+_instrumented_ = False
+
 def timeNamed(filename, time):
     time_point = ('00' + str(time))[-3:]  # Format time on 3 digit
     return filename.replace('$TIME', time_point)+".inr"
 
+def __slices_dilation(slices, maximum=[np.inf, np.inf, np.inf]):
+    return tuple([slice(max(0, s.start-1), min(s.stop+1, maximum[i])) for i, s in enumerate(slices)])
+
+def slices_dilation(slices, maximum=[np.inf, np.inf, np.inf], iterations=1):
+    for i in range(iterations):
+        slices=__slices_dilation(slices, maximum)
+    return slices
 
 def fuse_cells(couple, lin_tree, bb, im, t):
     """
@@ -36,6 +45,10 @@ def fuse_cells(couple, lin_tree, bb, im, t):
     else:
         if bb is None:
             bb=nd.find_objects(im)
+        #
+        # bounding box have to be dilated
+        #
+        bb[give-1] = slices_dilation(bb[give-1], maximum=im.shape, iterations=2)
         im_tmp=im[bb[give-1]]
         im_tmp_d=nd.binary_dilation(im_tmp==give)
         borders_b=im_tmp_d & (im_tmp!=give)

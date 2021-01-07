@@ -90,6 +90,11 @@ def _set_options(my_parser):
                            default=False, const=True,
                            help='print types of read features (for debug purpose)')
 
+    my_parser.add_argument('--old-keys',
+                           action='store_const', dest='old_keys',
+                           default=False, const=True,
+                           help='use historical keys for pkl file')
+
     #
     # control parameters
     #
@@ -356,7 +361,25 @@ if __name__ == '__main__':
             #
 
             # print "copy dictionary"
-            outputdict = inputdict
+            if args.old_keys is True:
+                outputdict = {}
+                for inputkey in inputdict:
+                    foundkey = False
+                    for k in properties.keydictionary:
+                        if inputkey in properties.keydictionary[k]['input_keys']:
+                            outputkey = properties.keydictionary[k]['output_key']
+                            if outputkey == 'cell_lineage':
+                                outputdict['lin_tree'] = inputdict[inputkey]
+                            elif outputkey == 'cell_volume':
+                                outputdict['volumes_information'] = inputdict[inputkey]
+                            else:
+                                outputdict[outputkey] = inputdict[inputkey]
+                            foundkey = True
+                            break
+                    if foundkey is False:
+                        outputdict[inputkey] = inputdict[inputkey]
+            else:
+                outputdict = inputdict
 
         if outputdict == {}:
             print "error: empty input dictionary ?! ... exiting"

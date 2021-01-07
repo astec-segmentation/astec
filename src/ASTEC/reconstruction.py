@@ -106,7 +106,7 @@ class ReconstructionParameters(ace.AceParameters):
         self.varprint('keep_reconstruction', self.keep_reconstruction)
         print("")
 
-    def write_parameters_in_file(self, logfile, spaces=0):
+    def write_parameters_in_file(self, logfile):
         logfile.write("\n")
         logfile.write("# \n")
         logfile.write("# ReconstructionParameters\n")

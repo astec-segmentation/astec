@@ -79,8 +79,8 @@ An end branch candidate for deletion is deleted if
 \begin{itemize}
 \itemsep -0.5ex
 \item either it is too short (threshold given by the variable \texttt{postcorrection\_lifespan\_minimal\_value}),
-\item or either its sister branch (which may not be an end branch) or its mother branch is too short, meaning that there are two divisions too close, (thresholds still given by the variable \texttt{postcorrection\_lifespan\_minimal\_value}),
-\item or (if the variable \texttt{postcorrection\_test\_early\_division} is set to \texttt{True}) if the Pearson correlation coefficient between the volumes of the candidate end branch and its sister branch is less than 
+\item or (if the variable \texttt{postcorrection\_test\_early\_division} is set to \texttt{True}) either its sister branch (which may not be an end branch) or its mother branch is too short, meaning that there are two divisions too close, (thresholds still given by the variable \texttt{postcorrection\_lifespan\_minimal\_value}),
+\item or if the Pearson correlation coefficient between the volumes of the candidate end branch and its sister branch is less than 
 -\texttt{postcorrection\_correlation\_threshold}, meaning that the volumes are anti-correlated (typically the volumes of the candidate end branch are decreasing while the ones of the sister branch are increasing, indicating a fake division detection).
 \end{itemize}
 

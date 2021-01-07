@@ -2524,6 +2524,11 @@ on r\'ecup\`ere l'ensemble des cellules avec lesquelles fusionner qui sont les s
     40	        im_tmp_d=nd.binary_dilation(im_tmp==give)
     41	        borders_b=im_tmp_d & (im_tmp!=give)
     42	        borders=im_tmp[borders_b]
+\end{verbatim} 
+\color{\mycolor}
+\texttt{scipy.ndimage.binary\_dilation()} est une dilatation par un 6-\'l\'ement structurant (par d\'efaut). \texttt{borders} r\'ecup\`ere donc les points 6-adjacents \`a la cellule \`a fusionner (\texttt{couple[0]}). Le choix se porte sur celle qui a le plus de 6-voisins, ce qui n'est pas la m\^eme chose que le nombre de 6-facettes d\'efinissant la fronti\`ere commune.
+\color{black}
+\begin{verbatim}
     43	        count=[]
     44	        for g in get:
     45	            count.append([g, np.sum(borders==g)])
@@ -2694,6 +2699,10 @@ Cette fonction renvoir \verb|True| si l'une des  branches, s{\oe}ur ou m\`ere, e
 
 \subsection{\texttt{branches\_to\_delete()}}
 \label{sec:branches:to:delete}
+\color{\mycolor}
+Appel\'e par \texttt{remove\_too\_little\_branches()}
+(section \ref{sec:remove:too:little:branches}, page \pageref{sec:remove:too:little:branches})
+\color{black}
 \begin{verbatim} 
    159	def branches_to_delete(tree, volumes, threshold, reverse_tree, soon=False,ShortLifespan=25,PearsonThreshold=0.9,time_begin=1,time_end=192):
    160	    """
@@ -2824,6 +2833,12 @@ ne v\'erifie pas si \verb|sisters| est multiple (s'il y a eu division)
    231	    """
    232	    print 'Process remove too little branches'
    233	    reverse_tree={v:k for k, values in lin_tree.iteritems() for v in values}
+\end{verbatim} 
+\color{\mycolor}
+Appel \`a \texttt{branches\_to\_delete()}
+(section \ref{sec:branches:to:delete}, page \pageref{sec:branches:to:delete}). \texttt{branches\_to\_delete()} ne renvoie qu'une seule branche (\`a fusionner). La fonction sera aussi appel\'ee \`a la fin de la boucle (ligne 265).
+\color{black}
+\begin{verbatim}
    234	    branches=branches_to_delete(lin_tree, volumes, threshold, reverse_tree, soon=soon,ShortLifespan=ShortLifespan,PearsonThreshold=PearsonThreshold,time_begin=time_begin,time_end=time_end)
    235	    lin_tree_out=deepcopy(lin_tree)
    236	    to_fuse={}
@@ -2892,6 +2907,12 @@ on traite ici les branches dont la m\`ere n'existe pas, donc commen\c{c}ant ex n
 \color{black}
 \begin{verbatim}
    265	        branches=branches_to_delete(lin_tree_out, new_volumes, threshold, reverse_tree, soon=soon,ShortLifespan=ShortLifespan,PearsonThreshold=PearsonThreshold,time_begin=time_begin,time_end=time_end)
+\end{verbatim} 
+\color{\mycolor}
+Appel \`a \texttt{branches\_to\_delete()}
+(section \ref{sec:branches:to:delete}, page \pageref{sec:branches:to:delete}) pour voir s'il y a une autre branche \`a fusionner.
+\color{black}
+\begin{verbatim}
    266	
    267	    #### FUSE TOO EARLY DIVISIONS
    268	    from scipy.stats.stats import pearsonr

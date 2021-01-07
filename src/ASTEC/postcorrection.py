@@ -21,6 +21,7 @@ from CommunFunctions.ImageHandling import imread, imsave, SpatialImage
 
 monitoring = common.Monitoring()
 
+_instrumented_ = False
 
 ########################################################################################
 #
@@ -55,9 +56,10 @@ class PostCorrectionParameters(common.PrefixedParameter):
         self.volume_minimal_value = 2000
         self.lifespan_minimal_value = 25
 
+        self.test_branch_length = True
         self.test_early_division = True
-
         self.test_volume_correlation = True
+
         self.correlation_threshold = 0.9
 
         self.test_postponing_division = True
@@ -66,7 +68,7 @@ class PostCorrectionParameters(common.PrefixedParameter):
         self.postponing_window_length = 4
 
         #
-        self.processors = 5
+        self.processors = 1
 
         # diagnosis
         self.lineage_diagnosis = False
@@ -87,6 +89,7 @@ class PostCorrectionParameters(common.PrefixedParameter):
 
         self.varprint('volume_minimal_value', self.volume_minimal_value)
         self.varprint('lifespan_minimal_value', self.lifespan_minimal_value)
+        self.varprint('test_branch_length', self.test_branch_length)
         self.varprint('test_early_division', self.test_early_division)
         self.varprint('test_volume_correlation', self.test_volume_correlation)
         self.varprint('correlation_threshold', self.correlation_threshold)
@@ -101,7 +104,7 @@ class PostCorrectionParameters(common.PrefixedParameter):
         self.varprint('lineage_diagnosis', self.lineage_diagnosis)
         print("")
 
-    def write_parameters_in_file(self, logfile, spaces=0):
+    def write_parameters_in_file(self, logfile):
         logfile.write("\n")
         logfile.write("# \n")
         logfile.write("# PostCorrectionParameters\n")
@@ -111,6 +114,7 @@ class PostCorrectionParameters(common.PrefixedParameter):
 
         self.varwrite(logfile, 'volume_minimal_value', self.volume_minimal_value)
         self.varwrite(logfile, 'lifespan_minimal_value', self.lifespan_minimal_value)
+        self.varwrite(logfile, 'test_branch_length', self.test_branch_length)
         self.varwrite(logfile, 'test_early_division', self.test_early_division)
         self.varwrite(logfile, 'test_volume_correlation', self.test_volume_correlation)
         self.varwrite(logfile, 'correlation_threshold', self.correlation_threshold)
@@ -127,7 +131,7 @@ class PostCorrectionParameters(common.PrefixedParameter):
         logfile.write("\n")
         return
 
-    def write_parameters(self, log_file_name, spaces=0):
+    def write_parameters(self, log_file_name):
         with open(log_file_name, 'a') as logfile:
             self.write_parameters_in_file(logfile)
         return
@@ -145,6 +149,7 @@ class PostCorrectionParameters(common.PrefixedParameter):
         self.lifespan_minimal_value = self.read_parameter(parameters, 'lifespan_minimal_value',
                                                           self.lifespan_minimal_value)
 
+        self.test_branch_length = self.read_parameter(parameters, 'test_branch_length', self.test_branch_length)
         self.test_early_division = self.read_parameter(parameters, 'test_early_division', self.test_early_division)
         self.test_early_division = self.read_parameter(parameters, 'soon', self.test_early_division)
         self.test_early_division = self.read_parameter(parameters, 'Soon', self.test_early_division)
@@ -180,7 +185,6 @@ class PostCorrectionParameters(common.PrefixedParameter):
         self.update_from_parameters(parameters)
 
 
-
 ########################################################################################
 #
 # fusion procedure
@@ -189,9 +193,12 @@ class PostCorrectionParameters(common.PrefixedParameter):
 
 def _map_cell_fusion(astec_image, post_image, current_time, cells_to_be_fused, time_digits_for_cell_id=4):
     #
-    #
+    # cells_to_be_fused is a dictionary where
+    # - keys are time values
+    # - values are arrays of tuples (new label, old label)
     #
     labels_to_be_fused = cells_to_be_fused.get(current_time, '')
+
     #
     # no fusion to be done, just copy the file
     #
@@ -261,6 +268,8 @@ def _test_early_division(direct_lineage, reverse_lineage, division_cell, cell, l
     #
     if len(sister_branch) < lifespan_minimal_value \
             and sister_branch[-1] / 10 ** time_digits_for_cell_id != last_time_point:
+        if _instrumented_:
+            monitoring.to_log_and_console(str(proc) + ": true because of sister length")
         return True
     #
     # extract the mother branch in the reverse order until the first bifurcation
@@ -281,6 +290,8 @@ def _test_early_division(direct_lineage, reverse_lineage, division_cell, cell, l
     #
     if len(mother_branch) < lifespan_minimal_value \
             and mother_branch[-1] / 10 ** time_digits_for_cell_id != first_time_point:
+        if _instrumented_:
+            monitoring.to_log_and_console(str(proc) + ": true because of mother length")
         return True
 
     return False
@@ -452,17 +463,28 @@ def _fuse_branch(lineage, volume, surfaces, labels_to_be_fused, division_cell, b
         # 3. update neighbors's contact surface
         #
         for cell in surfaces[branch[ibranch]]:
+            # skip progeny[iprogeny]
+            if cell == progeny[iprogeny]:
+                continue
+            # update contact surfaces of progeny[iprogeny]
             if cell in surfaces[progeny[iprogeny]]:
                 surfaces[progeny[iprogeny]][cell] += surfaces[branch[ibranch]][cell]
             else:
                 surfaces[progeny[iprogeny]][cell] = surfaces[branch[ibranch]][cell]
+            # background case: it is not in surfaces
+            # skip it
+            if cell not in surfaces:
+                continue
+            # update contact surfaces of neighboring cells
+            if branch[ibranch] in surfaces[cell]:
+                if progeny[iprogeny] in surfaces[cell]:
+                    surfaces[cell][progeny[iprogeny]] += surfaces[cell][branch[ibranch]]
+                else:
+                    surfaces[cell][progeny[iprogeny]] = surfaces[cell][branch[ibranch]]
+                del (surfaces[cell][branch[ibranch]])
+
         if branch[ibranch] in surfaces[progeny[iprogeny]]:
             del (surfaces[progeny[iprogeny]][branch[ibranch]])
-        for cell in surfaces[progeny[iprogeny]]:
-            if cell in surfaces:
-                surfaces[cell][progeny[iprogeny]] = surfaces[progeny[iprogeny]][cell]
-                if branch[ibranch] in surfaces[cell]:
-                    del (surfaces[cell][branch[ibranch]])
         surfaces.pop(branch[ibranch], None)
 
         #
@@ -498,14 +520,13 @@ def _fuse_branch(lineage, volume, surfaces, labels_to_be_fused, division_cell, b
         #
         ibranch += 1
         progeny = lineage.get(progeny[iprogeny], '')
-
         iprogeny = -1
         if len(progeny) >= 2:
             for i in range(len(progeny)):
-                if branch[ibranch] in surfaces[progeny[i]]:
+                if progeny[i] in surfaces[branch[ibranch]]:
                     if iprogeny == -1:
                         iprogeny = i
-                    elif surfaces[progeny[i]][branch[ibranch]] > surfaces[progeny[iprogeny]][branch[ibranch]]:
+                    elif surfaces[branch[ibranch]][progeny[i]] > surfaces[branch[ibranch]][progeny[iprogeny]]:
                         iprogeny = i
             if iprogeny == -1:
                 monitoring.to_log_and_console(str(proc) + ": cell #" + str(branch[ibranch]) + " has no neighbors in "
@@ -518,15 +539,17 @@ def _fuse_branch(lineage, volume, surfaces, labels_to_be_fused, division_cell, b
     #
     #
     if len(branch) <= 4:
-        strbranch = str(branch)
+        strb = str(branch)
     else:
-        strbranch = str(branch[0:2]) + "..." + str(branch[-2:])
+        strb = "[" + str(branch[0]) + ", " + str(branch[1]) + ", ..., " + str(branch[-2]) + ", " + str(branch[-1]) + "]"
     if len(sister_branch) <= 4:
-        strsister = str(sister_branch)
+        strs = str(sister_branch)
     else:
-        strsister = str(sister_branch[0:2]) + "..." + str(sister_branch[-2:])
+        strs = "[" + str(sister_branch[0]) + ", " + str(sister_branch[1]) + ", ..., " + str(sister_branch[-2]) + ", " \
+               + str(sister_branch[-1]) + "]"
 
-    monitoring.to_log_and_console("            ... " + strbranch + " was fused with " + strsister, 3)
+    monitoring.to_log_and_console("            ... from cell " + str(division_cell) + ": " + strb + " was fused with "
+                                  + strs, 3)
 
     return
 
@@ -664,20 +687,17 @@ def _prune_lineage_tree(lineage, volume, surfaces, experiment, parameters):
             #
             branch = _get_branch(reverse_lineage, leaf, division_cell)
 
-            if branch_length < parameters.lifespan_minimal_value:
+            if parameters.test_branch_length and branch_length < parameters.lifespan_minimal_value:
                 n_fusions_length += 1
-                pass
             elif parameters.test_early_division and _test_early_division(lineage, reverse_lineage, division_cell,
                                                                          branch[0], parameters.lifespan_minimal_value,
                                                                          first_time, last_time,
                                                                          time_digits_for_cell_id):
                 n_fusions_early_division += 1
-                pass
             elif parameters.test_volume_correlation and _test_volume_correlation(lineage, volume, division_cell,
                                                                                  branch[0],
                                                                                  parameters.correlation_threshold):
                 n_fusions_volume_correlation += 1
-                pass
             else:
                 continue
 
@@ -718,7 +738,6 @@ def _prune_lineage_tree(lineage, volume, surfaces, experiment, parameters):
     monitoring.to_log_and_console("       - " + str(total_n_fusions_volume_correlation)
                                   + " fusions because of volume anti-correlation", 2)
     monitoring.to_log_and_console("", 2)
-
     return lineage, volume, surfaces, labels_to_be_fused
 
 ########################################################################################
@@ -726,6 +745,7 @@ def _prune_lineage_tree(lineage, volume, surfaces, experiment, parameters):
 #
 #
 ########################################################################################
+
 
 def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment, parameters):
     proc = "_postpone_division"
@@ -775,6 +795,9 @@ def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment
     if len(valid_division_list) == 0:
         return lineage, volume, surfaces, labels_to_be_fused
 
+    monitoring.to_log_and_console("       found " + str(len(valid_division_list)) + " candidates among " +
+                                  str(len(division_list)) + " divisions", 3)
+
     #
     # compute scores for a sliding window
     #
@@ -793,6 +816,7 @@ def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment
     # analyze scores
     #
     time_digits_for_cell_id = experiment.get_time_digits_for_cell_id()
+    postponed_divisions = 0
     for c, scores in scores_window.iteritems():
         if (np.array(scores) < -parameters.postponing_correlation_threshold).all():
             first_size = len(scores) - 1
@@ -804,7 +828,9 @@ def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment
             if first_size != []:
                 first_size = first_size[0]
             else:
-                first_size = -1
+                continue
+
+        postponed_divisions += 1
         #
         # cell fusion
         # this is similar to what is done in _fuse_branch()
@@ -870,17 +896,20 @@ def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment
             c1 = next_c1
 
         if len(sister0_branch) <= 4:
-            str0branch = str(sister0_branch)
+            str0 = str(sister0_branch)
         else:
-            str0branch = str(sister0_branch[0:2]) + "..." + str(sister0_branch[-2:])
+            str0 = "[" + str(sister0_branch[0]) + ", " + str(sister0_branch[1]) + ", ..., " + str(sister0_branch[-2]) \
+                   + ", " + str(sister0_branch[-1]) + "]"
         if len(sister1_branch) <= 4:
-            str1branch = str(sister1_branch)
+            str1 = str(sister1_branch)
         else:
-            str1branch = str(sister1_branch[0:2]) + "..." + str(sister1_branch[-2:])
+            str1 = "[" + str(sister1_branch[0]) + ", " + str(sister1_branch[1]) + ", ..., " + str(sister1_branch[-2]) \
+                   + ", " + str(sister1_branch[-1]) + "]"
 
-        monitoring.to_log_and_console("            ... " + str0branch + " was fused with " + str1branch, 3)
+        monitoring.to_log_and_console("            ... from cell " + str(c) + ": " + str0 + " was fused with " + str1,
+                                      3)
 
-    monitoring.to_log_and_console("       - " + str(len(valid_division_list)) + " division postponing", 2)
+    monitoring.to_log_and_console("       - " + str(postponed_divisions) + " divisions were postponed", 2)
 
     return lineage, volume, surfaces, labels_to_be_fused
 
@@ -890,10 +919,12 @@ def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment
 #
 ########################################################################################
 
+
 def contact_surface_computation(experiment, parameters):
     """
 
     :param experiment: commonTools.Experiment
+    :param parameters:
     :return:
     """
 
@@ -917,8 +948,8 @@ def contact_surface_computation(experiment, parameters):
     #
     # build name format for (post-corrected) segmentation images
     #
-    name_format = experiment.astec_dir.get_file_prefix() + experiment.astec_dir.get_file_suffix() \
-                  + experiment.astec_dir.get_time_prefix() + experiment.get_time_format()
+    name_format = experiment.astec_dir.get_file_prefix() + experiment.astec_dir.get_file_suffix() + \
+                  experiment.astec_dir.get_time_prefix() + experiment.get_time_format()
 
     suffix = common.get_file_suffix(experiment, astec_dir, name_format, flag_time=experiment.get_time_format())
     if suffix is None:
@@ -1065,7 +1096,6 @@ def postcorrection_process(experiment, parameters):
         monitoring.to_log_and_console("   ... division postponing", 1)
         lineage, volume, surfaces, cells_to_be_fused = _postpone_division(lineage, volume, surfaces, cells_to_be_fused,
                                                                           experiment, parameters)
-
 
     #
     # save lineage tree

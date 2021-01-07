@@ -159,7 +159,8 @@ lin_tree_information=read_lineage_tree(path_seg_exp_lineage)
 lin_tree_cor, new_volumes, to_fuse, been_fused=\
 	remove_too_little_branches(lin_tree_information['lin_tree'], \
 		lin_tree_information['volumes_information'], \
-		p.postcor_Volume_Threshold, soon=p.postcor_Soon)
+        p.postcor_Volume_Threshold, soon = p.postcor_Soon, \
+        time_begin = p.begin + p.raw_delay, time_end = p.end + p.raw_delay)
 
 ### APPLYING THE CORRECTION ON THE IMAGES
 apply_cell_fusion(lin_tree_information['lin_tree'], \
