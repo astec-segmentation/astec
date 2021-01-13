@@ -286,14 +286,14 @@ def remove_too_little_branches(lin_tree, volumes, threshold=2000, soon=False,Sho
         tmp1, tmp2=get_volumes(n1, new_volumes, lin_tree_out), get_volumes(n2, new_volumes, lin_tree_out)
         common_len=min(len(tmp1), len(tmp2))
         if len(tmp1)>8 and len(tmp2)>8: 
-            P[(n1, n2)]=pearsonr(tmp1[:common_len-1], tmp2[:common_len-1])
+            P[(n1, n2)]=pearsonr(tmp1[:common_len], tmp2[:common_len])
     to_check=[k for k, v in P.iteritems() if v[0]<-.80] #.80 WHAT ? 
     scores_window={}
     for c1, c2 in to_check:
         tmp1, tmp2=get_volumes(c1, volumes, lin_tree_out), get_volumes(c2, volumes, lin_tree_out)
         scores=[]
         common_len=min(len(tmp1), len(tmp2))
-        for i in range(0, common_len-4):
+        for i in range(0, common_len-5+1):
             scores.append(pearsonr(tmp1[i:i+5], tmp2[i:i+5])[0])
         scores_window[(c1, c2)]=np.array(scores)
 

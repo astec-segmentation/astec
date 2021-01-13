@@ -65,7 +65,7 @@ class PostCorrectionParameters(common.PrefixedParameter):
         self.test_postponing_division = True
         self.postponing_correlation_threshold = 0.8
         self.postponing_minimal_length = 8
-        self.postponing_window_length = 4
+        self.postponing_window_length = 5
 
         #
         self.processors = 1
@@ -299,7 +299,7 @@ def _test_early_division(direct_lineage, reverse_lineage, division_cell, cell, l
 
 def _get_volumes(lineage, volume, cell):
     """
-    Return the list of volumes of cell n and its progeny up to division
+    Return the list of volumes of cell n and its progeny up to division (not included)
     lineage: lineage tree
     volume: dictionary of volumes
     cell: starting cell
@@ -808,8 +808,8 @@ def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment
         vol1 = _get_volumes(lineage, volume, lineage[c][1])
         min_length = min(len(vol0), len(vol1))
         scores = []
-        for i in range(0, min_length - window_length):
-            scores.append(pearsonr(vol0[i:i+window_length+1], vol1[i:i+window_length+1])[0])
+        for i in range(0, min_length - window_length + 1):
+            scores.append(pearsonr(vol0[i:i+window_length], vol1[i:i+window_length])[0])
         scores_window[c] = np.array(scores)
 
     #
@@ -821,9 +821,27 @@ def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment
         if (np.array(scores) < -parameters.postponing_correlation_threshold).all():
             first_size = len(scores) - 1
         else:
+            #
+            # out = score[i+1] - score[i]
+            # length(out) = length(scores) - 1
+            #
             out = scores[1:] - scores[:-1]
+            #
+            # sizes are indices of out values sorted in decreasing order
+            #
             sizes = np.argsort(out)[::-1]
+            #
+            # sizes are indices of out values where score[i] < - threshold,
+            # out values being sorted in decreasing order
+            #
             sizes = np.array([s for s in sizes if scores[s] < -parameters.postponing_correlation_threshold])
+            #
+            # only indices from the first half of the common part are kept
+            # and we chose the first one
+            #
+            # first_size is then an indice i, in the first half of the common part of the branches,
+            # where score[i] < - threshold and where (score[i+1] - score[i]) is maximal
+            #
             first_size = sizes[sizes < len(scores) / 2]
             if first_size != []:
                 first_size = first_size[0]
