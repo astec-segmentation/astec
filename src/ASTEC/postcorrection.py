@@ -67,6 +67,8 @@ class PostCorrectionParameters(common.PrefixedParameter):
         self.postponing_minimal_length = 8
         self.postponing_window_length = 5
 
+        self.mimic_historical_astec = False
+
         #
         self.processors = 1
 
@@ -99,6 +101,8 @@ class PostCorrectionParameters(common.PrefixedParameter):
         self.varprint('postponing_minimal_length', self.postponing_minimal_length)
         self.varprint('postponing_window_length', self.postponing_window_length)
 
+        self.varprint('mimic_historical_astec', self.mimic_historical_astec)
+
         self.varprint('processors', self.processors)
 
         self.varprint('lineage_diagnosis', self.lineage_diagnosis)
@@ -123,6 +127,8 @@ class PostCorrectionParameters(common.PrefixedParameter):
         self.varwrite(logfile, 'postponing_correlation_threshold', self.postponing_correlation_threshold)
         self.varwrite(logfile, 'postponing_minimal_length', self.postponing_minimal_length)
         self.varwrite(logfile, 'postponing_window_length', self.postponing_window_length)
+
+        self.varwrite(logfile, 'mimic_historical_astec', self.mimic_historical_astec)
 
         self.varwrite(logfile, 'processors', self.processors)
 
@@ -169,6 +175,9 @@ class PostCorrectionParameters(common.PrefixedParameter):
                                                              self.postponing_minimal_length)
         self.postponing_window_length = self.read_parameter(parameters, 'postponing_window_length',
                                                             self.postponing_window_length)
+
+        self.mimic_historical_astec = self.read_parameter(parameters, 'mimic_historical_astec',
+                                                          self.mimic_historical_astec)
 
         self.processors = self.read_parameter(parameters, 'processors', self.processors)
 
@@ -747,29 +756,13 @@ def _prune_lineage_tree(lineage, volume, surfaces, experiment, parameters):
 ########################################################################################
 
 
-def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment, parameters):
-    proc = "_postpone_division"
-    #
-    # parameter type checking
-    #
-
-    if not isinstance(experiment, common.Experiment):
-        monitoring.to_log_and_console(str(proc) + ": unexpected type for 'experiment' variable: "
-                                      + str(type(experiment)))
-        sys.exit(1)
-
-    if not isinstance(parameters, PostCorrectionParameters):
-        monitoring.to_log_and_console(str(proc) + ": unexpected type for 'parameters' variable: "
-                                      + str(type(parameters)))
-        sys.exit(1)
-
+def _get_postponing_candidate_divisions(lineage, volume, parameters):
     #
     # get all division
     #
     division_list = [c for c in lineage if len(lineage[c]) == 2]
-
     if len(division_list) == 0:
-        return lineage, volume, surfaces, labels_to_be_fused
+        return []
     #
     # get 'valid' divisions:
     # - branch length must be long enough
@@ -793,14 +786,15 @@ def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment
         valid_division_list.append(c)
 
     if len(valid_division_list) == 0:
-        return lineage, volume, surfaces, labels_to_be_fused
+        return []
 
     monitoring.to_log_and_console("       found " + str(len(valid_division_list)) + " candidates among " +
                                   str(len(division_list)) + " divisions", 3)
 
-    #
-    # compute scores for a sliding window
-    #
+    return valid_division_list
+
+
+def _get_postponing_scores(valid_division_list, lineage, volume, parameters):
     scores_window = {}
     window_length = parameters.postponing_window_length
     for c in valid_division_list:
@@ -809,44 +803,90 @@ def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment
         min_length = min(len(vol0), len(vol1))
         scores = []
         for i in range(0, min_length - window_length + 1):
-            scores.append(pearsonr(vol0[i:i+window_length], vol1[i:i+window_length])[0])
+            scores.append(pearsonr(vol0[i:i + window_length], vol1[i:i + window_length])[0])
         scores_window[c] = np.array(scores)
+    return scores_window
+
+
+def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment, parameters):
+    proc = "_postpone_division"
+    #
+    # parameter type checking
+    #
+
+    if not isinstance(experiment, common.Experiment):
+        monitoring.to_log_and_console(str(proc) + ": unexpected type for 'experiment' variable: "
+                                      + str(type(experiment)))
+        sys.exit(1)
+
+    if not isinstance(parameters, PostCorrectionParameters):
+        monitoring.to_log_and_console(str(proc) + ": unexpected type for 'parameters' variable: "
+                                      + str(type(parameters)))
+        sys.exit(1)
+
+    #
+    # get candidate divisions
+    #
+    valid_division_list = _get_postponing_candidate_divisions(lineage, volume, parameters)
+    if len(valid_division_list) == 0:
+        return lineage, volume, surfaces, labels_to_be_fused
+
+    #
+    # compute scores for a sliding window
+    #
+    scores_window = _get_postponing_scores(valid_division_list, lineage, volume, parameters)
 
     #
     # analyze scores
     #
     time_digits_for_cell_id = experiment.get_time_digits_for_cell_id()
     postponed_divisions = 0
+
     for c, scores in scores_window.iteritems():
         if (np.array(scores) < -parameters.postponing_correlation_threshold).all():
             first_size = len(scores) - 1
         else:
             #
-            # out = score[i+1] - score[i]
-            # length(out) = length(scores) - 1
+            # historical astec
             #
-            out = scores[1:] - scores[:-1]
-            #
-            # sizes are indices of out values sorted in decreasing order
-            #
-            sizes = np.argsort(out)[::-1]
-            #
-            # sizes are indices of out values where score[i] < - threshold,
-            # out values being sorted in decreasing order
-            #
-            sizes = np.array([s for s in sizes if scores[s] < -parameters.postponing_correlation_threshold])
-            #
-            # only indices from the first half of the common part are kept
-            # and we chose the first one
-            #
-            # first_size is then an indice i, in the first half of the common part of the branches,
-            # where score[i] < - threshold and where (score[i+1] - score[i]) is maximal
-            #
-            first_size = sizes[sizes < len(scores) / 2]
-            if first_size != []:
+            if parameters.mimic_historical_astec:
+                #
+                # out = score[i+1] - score[i]
+                # length(out) = length(scores) - 1
+                #
+                out = scores[1:] - scores[:-1]
+                #
+                # sizes are indices of out values sorted in decreasing order
+                #
+                sizes = np.argsort(out)[::-1]
+                #
+                # sizes are indices of out values where score[i] < - threshold,
+                # out values being sorted in decreasing order
+                #
+                sizes = np.array([s for s in sizes if scores[s] < -parameters.postponing_correlation_threshold])
+                #
+                # only indices from the first half of the common part are kept
+                # and we chose the first one
+                #
+                # first_size is then an indice i, in the first half of the common part of the branches,
+                # where score[i] < - threshold and where (score[i+1] - score[i]) is maximal
+                #
+                first_size = sizes[sizes < len(scores) / 2]
+                if len(first_size) == 0:
+                    continue
                 first_size = first_size[0]
+            #
+            # new scheme
+            #
             else:
-                continue
+                first_size = -1
+                for s in range(len(scores)):
+                    if scores[s] < -parameters.postponing_correlation_threshold:
+                        first_size = s
+                    else:
+                        break
+                if first_size == -1:
+                    continue
 
         postponed_divisions += 1
         #
@@ -930,6 +970,7 @@ def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment
     monitoring.to_log_and_console("       - " + str(postponed_divisions) + " divisions were postponed", 2)
 
     return lineage, volume, surfaces, labels_to_be_fused
+
 
 ########################################################################################
 #
@@ -1104,8 +1145,6 @@ def postcorrection_process(experiment, parameters):
     monitoring.to_log_and_console("   ... lineage pruning", 1)
     lineage, volume, surfaces, cells_to_be_fused = _prune_lineage_tree(dict_lineage, dict_volume, dict_surface,
                                                                        experiment, parameters)
-    # sys.exit(1)
-    # _remove_small_branches(dict_lineage, dict_volume, experiment, parameters)
 
     #
     #
