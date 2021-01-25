@@ -12,6 +12,7 @@ import sys
 
 import ASTEC.common as common
 import ASTEC.postcorrection as post
+import ASTEC.properties as properties
 from ASTEC.CommunFunctions.cpp_wrapping import path_to_vt
 
 
@@ -159,6 +160,7 @@ def main():
     # so the log filename is known
     #
     post.monitoring.copy(monitoring)
+    properties.monitoring.copy(monitoring)
 
     #
     # manage parameters

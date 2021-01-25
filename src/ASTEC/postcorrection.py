@@ -684,6 +684,10 @@ def _prune_lineage_tree(lineage, volume, surfaces, experiment, parameters):
                 #                              + str(leaf) + " has " + str(len(lineage[division_cell]))
                 #                              + " progeny. Skip it", 4)
                 continue
+            if len(lineage[division_cell]) > 2:
+                monitoring.to_log_and_console("         cell " + str(division_cell) +
+                                              " divides in more than 2 branches. Skip it", 4)
+                continue
 
             #
             # get the whole branch from the leaf
