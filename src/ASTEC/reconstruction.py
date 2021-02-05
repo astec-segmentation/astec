@@ -87,7 +87,6 @@ class ReconstructionParameters(ace.AceParameters):
         common.PrefixedParameter.print_parameters(self)
 
         ace.AceParameters.print_parameters(self)
-
         self.varprint('intensity_transformation', self.intensity_transformation)
         self.varprint('intensity_enhancement', self.intensity_enhancement)
         self.varprint('outer_contour_enhancement', self.outer_contour_enhancement)
@@ -116,8 +115,13 @@ class ReconstructionParameters(ace.AceParameters):
 
         ace.AceParameters.write_parameters_in_file(self, logfile)
 
-        self.varwrite(logfile, 'intensity_transformation', self.intensity_transformation)
-        self.varwrite(logfile, 'intensity_enhancement', self.intensity_enhancement)
+        doc = "possible values are 'identity', 'normalization_to_u8',"
+        doc += "'cell_normalization_to_u8', 'none' or None"
+        self.varwrite(logfile, 'intensity_transformation', self.intensity_transformation, doc)
+        doc = "possible values are 'gace', 'glace', 'none', or None\n"
+        doc += "glace is a cell-based enhancement technique, only available in the\n"
+        doc += "segmentation propagtion step (aka astec)"
+        self.varwrite(logfile, 'intensity_enhancement', self.intensity_enhancement, doc)
         self.varwrite(logfile, 'outer_contour_enhancement', self.outer_contour_enhancement)
         self.varwrite(logfile, 'reconstruction_images_combination', self.reconstruction_images_combination)
 

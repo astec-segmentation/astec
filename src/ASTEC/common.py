@@ -198,8 +198,11 @@ class PrefixedParameter(object):
         print('# _prefixes    = ' + str(self._prefixes))
         print('#')
 
-    def varwrite(self, logfile, name, value):
+    def varwrite(self, logfile, name, value, doc=None):
         logfile.write(str_variable(self._full_prefix + name, value) + '\n')
+        if doc is not None and isinstance(doc, str) and len(doc):
+            for line in doc.splitlines():
+                logfile.write('# ' + line + '\n')
 
     def write_parameters_in_file(self, logfile):
         logfile.write('# _prefix      = ' + str(self._prefix) + '\n')
