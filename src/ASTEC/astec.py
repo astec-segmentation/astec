@@ -1135,7 +1135,7 @@ def _build_seeds_from_selected_parameters(selected_parameter_seeds,
             new_seed_image[first_seeds == 1] = 1
 
         if len(unseeded_cells) > 0:
-            monitoring.to_log_and_console('      process cell without childrens', 3)
+            monitoring.to_log_and_console('      process cell without children', 3)
             for c in unseeded_cells:
                 #
                 # first_segmentation is segmentation_from_previous
@@ -1150,7 +1150,7 @@ def _build_seeds_from_selected_parameters(selected_parameter_seeds,
                     new_seed_image[first_seeds == c] = label_max
                     label_max += 1
         else:
-            monitoring.to_log_and_console('      no cell without childrens to be processed', 3)
+            monitoring.to_log_and_console('      no cell without children to be processed', 3)
 
         del first_seeds
     #

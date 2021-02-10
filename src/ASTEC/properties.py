@@ -241,6 +241,8 @@ keydictionary = {'lineage': {'output_key': 'cell_lineage',
                               'input_keys': ['urchin_basal_contact_edge_segment']},
                  'urchin_vegetal_distance': {'output_key': 'urchin_vegetal_distance',
                               'input_keys': ['urchin_vegetal_distance']},
+                 'urchin_apical_surface_barycenter': {'output_key': 'urchin_apical_surface_barycenter',
+                              'input_keys': ['urchin_apical_surface_barycenter']},
                  'unknown': {'output_key': 'unknown_key',
                              'input_keys': ['unknown_key']}}
 
@@ -681,22 +683,30 @@ def _update_read_dictionary(propertiesdict, tmpdict, filename):
         #
         monitoring.to_log_and_console("   ... unrecognized key(s) are '" + str(unknownkeys) + "'", 1)
 
-        outputkey = keydictionary['unknown']['output_key']
+        # previous behavior: use keydictionary['unknown']['output_key'] as key
+        # for *one* unknown property
+        #
+        #  outputkey = keydictionary['unknown']['output_key']
+        # if len(unknownkeys) == 1:
+        #     tmpkey = unknownkeys[0]
+        #     if outputkey in propertiesdict:
+        #         if type(propertiesdict[outputkey]) is dict and type(tmpdict[tmpkey]) is dict:
+        #             propertiesdict[outputkey].update(tmpdict[tmpkey])
+        #         elif type(propertiesdict[outputkey]) is list and type(tmpdict[tmpkey]) is list:
+        #             propertiesdict[outputkey] += tmpdict[tmpkey]
+        #         else:
+        #             monitoring.to_log_and_console(proc + ": error, can not update property '" + str(outputkey)
+        #                                           + "'")
+        #     else:
+        #         propertiesdict[outputkey] = tmpdict[tmpkey]
+        # else:
+        #     monitoring.to_log_and_console(proc + ": error, can not update many unknown properties")
 
-        if len(unknownkeys) == 1:
-            tmpkey = unknownkeys[0]
-            if outputkey in propertiesdict:
-                if type(propertiesdict[outputkey]) is dict and type(tmpdict[tmpkey]) is dict:
-                    propertiesdict[outputkey].update(tmpdict[tmpkey])
-                elif type(propertiesdict[outputkey]) is list and type(tmpdict[tmpkey]) is list:
-                    propertiesdict[outputkey] += tmpdict[tmpkey]
-                else:
-                    monitoring.to_log_and_console(proc + ": error, can not update property '" + str(outputkey)
-                                                  + "'")
-            else:
-                propertiesdict[outputkey] = tmpdict[tmpkey]
-        else:
-            monitoring.to_log_and_console(proc + ": error, can not update many unknown properties")
+        #
+        # use unknown keys as such
+        #
+        for k in unknownkeys:
+            propertiesdict[k] = tmpdict[k]
 
     return propertiesdict
 
