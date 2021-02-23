@@ -1877,14 +1877,14 @@ class Experiment(PrefixedParameter):
         logfile.write('\n')
         return
 
-    def write_parameters(self, log_filename=None):
+    def write_parameters(self, log_filename=None, directories=None):
         if log_filename is not None:
             local_log_filename = log_filename
         else:
             local_log_filename = monitoring.log_filename
         if local_log_filename is not None:
             with open(local_log_filename, 'a') as logfile:
-                self.write_parameters_in_file(logfile)
+                self.write_parameters_in_file(logfile, directories=directories)
         return
 
     def update_history_at_start(self, cli_name=None, start_time=None, parameter_file=None, path_to_vt=None):
