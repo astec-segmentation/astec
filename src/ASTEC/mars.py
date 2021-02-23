@@ -42,17 +42,10 @@ class WatershedParameters(common.PrefixedParameter):
 
         if prefix is None:
             prefix = ['watershed_']
-        # elif type(prefix) == str:
-        #     if prefix != 'watershed_':
-        #         prefix = [prefix, 'watershed_']
-        # elif type(prefix) == list:
-        #     if 'watershed_' not in prefix:
-        #         prefix.append('watershed_')
-        # else:
-        #     print("Error: unhandled type '" + str(type(prefix)) + "' for prefix. Exiting.")
-        #     sys.exit(1)
-
         common.PrefixedParameter.__init__(self, prefix=prefix)
+
+        if "doc" not in self.__dict__:
+            self.doc = {}
 
         #
         #
@@ -62,16 +55,17 @@ class WatershedParameters(common.PrefixedParameter):
         # gaussian standard deviation: smoothing input image for watershed
         #
         #
+        doc = "\t h-value for the extraction of h-minima (regional minima)\n"
+        self.doc['seed_hmin'] = doc
+        doc = "\t threshold for regional minima labeling (has to be in [1, h] range).\n"
+        doc += "\t was introduced for test purposes. Do not use.\n"
+        self.doc['seed_high_threshold'] = doc
         if obj is not None and isinstance(obj, WatershedParameters):
-            self.seed_sigma = obj.seed_sigma
             self.seed_hmin = obj.seed_hmin
             self.seed_high_threshold = obj.seed_high_threshold
-            self.membrane_sigma = obj.membrane_sigma
         else:
-            self.seed_sigma = 0.6
             self.seed_hmin = 4
             self.seed_high_threshold = None
-            self.membrane_sigma = 0.15
 
     ############################################################
     #
@@ -84,13 +78,12 @@ class WatershedParameters(common.PrefixedParameter):
         print('#')
         print('# WatershedParameters')
         print('#')
+        print("")
 
         common.PrefixedParameter.print_parameters(self)
 
-        self.varprint('seed_sigma', self.seed_sigma)
-        self.varprint('seed_hmin', self.seed_hmin)
-        self.varprint('seed_high_threshold', self.seed_high_threshold)
-        self.varprint('membrane_sigma', self.membrane_sigma)
+        self.varprint('seed_hmin', self.seed_hmin, self.doc['seed_hmin'])
+        self.varprint('seed_high_threshold', self.seed_high_threshold, self.doc['seed_high_threshold'])
         print("")
 
     def write_parameters_in_file(self, logfile):
@@ -98,13 +91,12 @@ class WatershedParameters(common.PrefixedParameter):
         logfile.write("# \n")
         logfile.write("# WatershedParameters\n")
         logfile.write("# \n")
+        logfile.write("\n")
 
         common.PrefixedParameter.write_parameters_in_file(self, logfile)
 
-        self.varwrite(logfile, 'seed_sigma', self.seed_sigma)
-        self.varwrite(logfile, 'seed_hmin', self.seed_hmin)
-        self.varwrite(logfile, 'seed_high_threshold', self.seed_high_threshold)
-        self.varwrite(logfile, 'membrane_sigma', self.membrane_sigma)
+        self.varwrite(logfile, 'seed_hmin', self.seed_hmin, self.doc['seed_hmin'])
+        self.varwrite(logfile, 'seed_high_threshold', self.seed_high_threshold, self.doc['seed_high_threshold'])
         logfile.write("\n")
         return
 
@@ -120,16 +112,10 @@ class WatershedParameters(common.PrefixedParameter):
     ############################################################
     def update_from_parameters(self, parameters):
 
-        self.seed_sigma = self.read_parameter(parameters, 'sigma1', self.seed_sigma)
-        self.seed_sigma = self.read_parameter(parameters, 'seed_sigma', self.seed_sigma)
-
         self.seed_hmin = self.read_parameter(parameters, 'h_min', self.seed_hmin)
         self.seed_hmin = self.read_parameter(parameters, 'seed_hmin', self.seed_hmin)
 
         self.seed_high_threshold = self.read_parameter(parameters, 'seed_high_threshold', self.seed_high_threshold)
-
-        self.membrane_sigma = self.read_parameter(parameters, 'sigma2', self.membrane_sigma)
-        self.membrane_sigma = self.read_parameter(parameters, 'membrane_sigma', self.membrane_sigma)
 
     def update_from_parameter_file(self, parameter_file):
         if parameter_file is None:
@@ -148,7 +134,7 @@ class WatershedParameters(common.PrefixedParameter):
 #
 #
 
-class SeedEditionParameters(object):
+class SeedEditionParameters(common.PrefixedParameter):
 
     ############################################################
     #
@@ -156,16 +142,32 @@ class SeedEditionParameters(object):
     #
     ############################################################
 
-    def __init__(self):
+    def __init__(self, prefix=None):
+
+        common.PrefixedParameter.__init__(self, prefix=prefix)
+
+        if "doc" not in self.__dict__:
+            self.doc = {}
+
         #
-        #
-        # gaussian standard deviation: smoothing input image for seed extraction
-        # h-value for regional minima extraction
-        # threshold for regional minima labeling (has to be in [1, h] range
-        # gaussian standard deviation: smoothing input image for watershed
-        #
-        #
+        doc = "\t Directory containing the seed edition files\n"
+        self.doc['seed_edition_dir'] = doc
         self.seed_edition_dir = None
+        doc = "\t If run with the '-k' option, temporary files, including the computed\n"
+        doc += "\t seeds are kept into a temporary directory, and can be corrected in\n"
+        doc += "\t several rounds\n"
+        doc += "\t seed_edition_file is a list of list of file names (files being located\n"
+        doc += "\t into the 'seed_edition_dir' directory), eg\n"
+        doc += "\t seed_edition_file = [['seeds_to_be_fused_001.txt', 'seeds_to_be_created_001.txt'],\n"
+        doc += "\t                      ['seeds_to_be_fused_002.txt', 'seeds_to_be_created_002.txt'],\n"
+        doc += "\t                      ...\n"
+        doc += "\t                     ['seeds_to_be_fused_00X.txt', 'seeds_to_be_created_00X.txt']] \n"
+        doc += "\t Each line of a 'seeds_to_be_fused_00x.txt' file contains the labels to\n"
+        doc += "\t be fused, e.g. '10 4 2 24'. A same label can be found in several lines,\n"
+        doc += "\t meaning that all the labels of these lines will be fused. Each line of\n"
+        doc += "\t 'seeds_to_be_created_00x.txt' contains the integer coordinates of a \n"
+        doc += "\t seed to be added.\n"
+        self.doc['seed_edition_file'] = doc
         self.seed_edition_file = None
 
     ############################################################
@@ -179,8 +181,9 @@ class SeedEditionParameters(object):
         print('#')
         print('# SeedEditionParameters ')
         print('#')
-        print(common.str_variable('seed_edition_dir', self.seed_edition_dir))
-        print(common.str_variable('seed_edition_file', self.seed_edition_file))
+        print('')
+        self.varprint('seed_edition_dir', self.seed_edition_dir, self.doc['seed_edition_dir'])
+        self.varprint('seed_edition_file', self.seed_edition_file, self.doc['seed_edition_file'])
         print("")
 
     def write_parameters_in_file(self, logfile):
@@ -188,8 +191,9 @@ class SeedEditionParameters(object):
         logfile.write('#' + '\n')
         logfile.write('# SeedEditionParameters ' + '\n')
         logfile.write('#' + '\n')
-        logfile.write(common.str_variable('seed_edition_dir', self.seed_edition_dir) + '\n')
-        logfile.write(common.str_variable('seed_edition_file', self.seed_edition_file) + '\n')
+        logfile.write('\n')
+        self.varwrite(logfile, 'seed_edition_dir', self.seed_edition_dir, self.doc['seed_edition_dir'])
+        self.varwrite(logfile, 'seed_edition_file', self.seed_edition_file, self.doc['seed_edition_file'])
         logfile.write("\n")
         return
 
@@ -286,16 +290,42 @@ class MarsParameters(WatershedParameters, SeedEditionParameters):
 
     def __init__(self, prefix="mars_"):
 
+        if "doc" not in self.__dict__:
+            self.doc = {}
+
+        doc = "\n"
+        doc += "Mars parameters overview:\n"
+        doc += "=========================\n"
+        doc += "'Mars' tries to segment a membrane image thanks to a \n"
+        doc += "seed-based watershed procedure.\n"
+        doc += "The input image can be transformed twice (through the \n"
+        doc += "so-called reconstruction procedure):\n"
+        doc += "1. to extract the seeds, through a h-minima computation\n"
+        doc += "2. to serve as the elevation image for the watershed\n"
+        doc += "\n"
+        self.doc['mars_overview'] = doc
+
+        doc = "\t first time point of the series to be processed with\n"
+        doc += "\t mars segmentation (in case of a range of image is to\n"
+        doc += "\t be processed).\n"
+        doc += "\t Default is that only the time point defined par the 'begin'.\n"
+        doc += "\t variable is processed.\n"
+        self.doc['first_time_point'] = doc
         self.first_time_point = -1
+        doc = "\t last time point of the series to be processed with\n"
+        doc += "\t mars segmentation (in case of a range of image is to\n"
+        doc += "\t be processed).\n"
+        self.doc['last_time_point'] = doc
         self.last_time_point = -1
 
         WatershedParameters.__init__(self, prefix=prefix)
-        SeedEditionParameters.__init__(self)
+        SeedEditionParameters.__init__(self, prefix=prefix)
         #
         # reconstruction parameters
-        #
         self.seed_reconstruction = reconstruction.ReconstructionParameters(prefix=[self._prefix, "seed_"])
         self.membrane_reconstruction = reconstruction.ReconstructionParameters(prefix=[self._prefix, "membrane_"])
+        self.seed_reconstruction.intensity_sigma = 0.6
+        self.membrane_reconstruction.intensity_sigma = 0.15
         return
 
     ############################################################
@@ -309,9 +339,15 @@ class MarsParameters(WatershedParameters, SeedEditionParameters):
         print('#')
         print('# MarsParameters')
         print('#')
+        print("")
 
-        self.varprint('first_time_point', self.first_time_point)
-        self.varprint('last_time_point', self.last_time_point)
+        common.PrefixedParameter.print_parameters(self)
+
+        for line in self.doc['mars_overview'].splitlines():
+            print('# ' + line)
+
+        self.varprint('first_time_point', self.first_time_point, self.doc['first_time_point'])
+        self.varprint('last_time_point', self.last_time_point, self.doc['last_time_point'])
         WatershedParameters.print_parameters(self)
         SeedEditionParameters.print_parameters(self)
         self.seed_reconstruction.print_parameters()
@@ -323,10 +359,16 @@ class MarsParameters(WatershedParameters, SeedEditionParameters):
         logfile.write("# \n")
         logfile.write("# MarsParameters\n")
         logfile.write("# \n")
+        logfile.write("\n")
 
         common.PrefixedParameter.write_parameters_in_file(self, logfile)
-        self.varwrite(logfile, 'first_time_point', self.first_time_point)
-        self.varwrite(logfile, 'last_time_point', self.last_time_point)
+
+        for line in self.doc['mars_overview'].splitlines():
+            logfile.write('# ' + line + '\n')
+
+        common.PrefixedParameter.write_parameters_in_file(self, logfile)
+        self.varwrite(logfile, 'first_time_point', self.first_time_point, self.doc['first_time_point'])
+        self.varwrite(logfile, 'last_time_point', self.last_time_point, self.doc['last_time_point'])
         WatershedParameters.write_parameters_in_file(self, logfile)
         SeedEditionParameters.write_parameters_in_file(self, logfile)
         self.seed_reconstruction.write_parameters_in_file(logfile)
@@ -379,6 +421,16 @@ class MarsParameters(WatershedParameters, SeedEditionParameters):
         SeedEditionParameters.update_from_parameters(self, parameters)
         self.seed_reconstruction.update_from_parameters(parameters)
         self.membrane_reconstruction.update_from_parameters(parameters)
+
+        # backward compatibility
+        self.seed_reconstruction.intensity_sigma = self.read_parameter(parameters, 'sigma1',
+                                                                       self.seed_reconstruction.intensity_sigma)
+        self.seed_reconstruction.intensity_sigma = self.read_parameter(parameters, 'seed_sigma',
+                                                                       self.seed_reconstruction.intensity_sigma)
+        self.membrane_reconstruction.intensity_sigma = self.read_parameter(parameters, 'sigma2',
+                                                                           self.membrane_reconstruction.intensity_sigma)
+        self.membrane_reconstruction.intensity_sigma = self.read_parameter(parameters, 'membrane_sigma',
+                                                                           self.membrane_reconstruction.intensity_sigma)
 
     def update_from_parameter_file(self, parameter_file):
         if parameter_file is None:
@@ -466,24 +518,14 @@ def build_seeds(input_image, difference_image, output_seed_image, experiment, pa
 
     #
     # seed extraction from a membrane image:
-    # 1. linear smoothing of input image before regional extrema computation
+    # 1. linear smoothing is now done in the reconstruction stage
     # 2. h-minima computation
     #
     # seed extraction from a difference image:
     # h-maxima computation
     #
 
-    if parameters.seed_sigma > 0.0:
-        monitoring.to_log_and_console("       smoothing '" + str(input_image).split(os.path.sep)[-1]
-                                      + "' with sigma = " + str(parameters.seed_sigma), 2)
-        seed_preimage = common.add_suffix(input_image, "_smoothing_for_seeds",
-                                          new_dirname=experiment.working_dir.get_tmp_directory(0),
-                                          new_extension=experiment.default_image_suffix)
-        if not os.path.isfile(seed_preimage) or monitoring.forceResultsToBeBuilt is True:
-            cpp_wrapping.linear_smoothing(input_image, seed_preimage, parameters.seed_sigma, real_scale=True,
-                                          filter_type='deriche', border=10, other_options="-o 2", monitoring=monitoring)
-    else:
-        seed_preimage = input_image
+    seed_preimage = input_image
 
     if not os.path.isfile(seed_preimage):
         monitoring.to_log_and_console(proc + ": '" + str(seed_preimage).split(os.path.sep)[-1] + "' does not exist", 2)
@@ -600,22 +642,8 @@ def watershed(seed_image, membrane_image, result_image, experiment, parameters):
                                       + str(type(parameters)))
         sys.exit(1)
 
-    if parameters.membrane_sigma > 0.0:
-        monitoring.to_log_and_console("    .. smoothing '" + str(membrane_image).split(os.path.sep)[-1] +
-                                      "' with sigma = " + str(parameters.membrane_sigma), 2)
-        height_image = common.add_suffix(membrane_image, "_smoothing_for_watershed",
-                                         new_dirname=experiment.working_dir.get_tmp_directory(0),
-                                         new_extension=experiment.default_image_suffix)
-        if not os.path.isfile(height_image) or monitoring.forceResultsToBeBuilt is True:
-            cpp_wrapping.linear_smoothing(membrane_image, height_image, parameters.membrane_sigma, real_scale=True,
-                                          filter_type='deriche', border=10, other_options="-o 2", monitoring=monitoring)
-
-        if not os.path.isfile(height_image):
-            monitoring.to_log_and_console("       smoothing '" + str(membrane_image).split(os.path.sep)[-1] +
-                                          "' seems to have failed, use non-smoothed image", 2)
-            height_image = membrane_image
-    else:
-        height_image = membrane_image
+    # smoothing is done in the reconstruction stage
+    height_image = membrane_image
 
     #
     # watershed

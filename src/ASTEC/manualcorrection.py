@@ -30,7 +30,7 @@ monitoring = common.Monitoring()
 ########################################################################################
 
 
-class ManualCorrectionParameters(object):
+class ManualCorrectionParameters(common.PrefixedParameter):
 
     ############################################################
     #
@@ -38,25 +38,67 @@ class ManualCorrectionParameters(object):
     #
     ############################################################
 
-    def __init__(self):
+    def __init__(self, prefix=None):
 
+        common.PrefixedParameter.__init__(self, prefix=prefix)
+
+        if "doc" not in self.__dict__:
+            self.doc = {}
+
+        doc = "\n"
+        doc += "Manual correction overview:\n"
+        doc += "===========================\n"
+        doc += "Fuses labels from the 'mars' segmentation to correct\n"
+        doc += "over-segmentation errors.\n"
+        doc += "\n"
+        self.doc['manualcorrection_overview'] = doc
         #
         #
         #
+        doc = "\t first time point of the series to be processed with\n"
+        doc += "\t manual correction (in case of a range of image is to\n"
+        doc += "\t be processed).\n"
+        doc += "\t Default is that only the time point defined par the 'begin'.\n"
+        doc += "\t variable is processed.\n"
+        self.doc['first_time_point'] = doc
         self.first_time_point = -1
+
+        doc = "\t last time point of the series to be processed with\n"
+        doc += "\t manual correction (in case of a range of image is to\n"
+        doc += "\t be processed).\n"
+        self.doc['last_time_point'] = doc
         self.last_time_point = -1
 
         #
         #
         #
+        doc = "\t Input image (if both input and output image name is given\n"
+        doc += "\t to the command line interface).\n"
+        self.doc['input_image'] = doc
         self.input_image = None
+
+        doc = "\t Output image (if both input and output image name is given\n"
+        doc += "\t to the command line interface).\n"
+        self.doc['output_image'] = doc
         self.output_image = None
+
+        doc = "\t File containing the labels to be fused.\n"
+        doc += "\t The syntax of this file is:\n"
+        doc += "\t - 1 line per label association, eg\n"
+        doc += "\t   '8 7'\n"
+        doc += "\t - background label has value 1\n"
+        doc += "\t - the character '#' denotes commented lines \n"
+        self.doc['mapping_file'] = doc
         self.mapping_file = None
 
         #
         #
         #
+        doc = "\t Number of smallest cells displayed in diagnosis\n"
+        self.doc['smallest_cells'] = doc
         self.smallest_cells = 8
+        doc = "\t Number of largest cells displayed in diagnosis\n"
+        self.doc['largest_cells'] = doc
         self.largest_cells = 8
 
     ############################################################
@@ -70,13 +112,22 @@ class ManualCorrectionParameters(object):
         print('#')
         print('# ManualCorrectionParameters ')
         print('#')
+        print('')
 
-        print(common.str_variable('first_time_point', self.first_time_point))
-        print(common.str_variable('last_time_point', self.last_time_point))
+        common.PrefixedParameter.print_parameters(self)
 
-        print(common.str_variable('input_image', self.input_image))
-        print(common.str_variable('output_image', self.output_image))
-        print(common.str_variable('mapping_file', self.mapping_file))
+        for line in self.doc['manualcorrection_overview'].splitlines():
+            print('# ' + line)
+
+        self.varprint('first_time_point', self.first_time_point, self.doc['first_time_point'])
+        self.varprint('last_time_point', self.last_time_point, self.doc['last_time_point'])
+
+        self.varprint('input_image', self.input_image, self.doc['input_image'])
+        self.varprint('output_image', self.output_image, self.doc['output_image'])
+        self.varprint('mapping_file', self.mapping_file, self.doc['mapping_file'])
+
+        self.varprint('smallest_cells', self.smallest_cells, self.doc['smallest_cells'])
+        self.varprint('largest_cells', self.largest_cells, self.doc['largest_cells'])
 
         print("")
 
@@ -85,13 +136,22 @@ class ManualCorrectionParameters(object):
         logfile.write('#' + '\n')
         logfile.write('# ManualCorrectionParameters ' + '\n')
         logfile.write('#' + '\n')
+        logfile.write('\n')
 
-        logfile.write(common.str_variable('first_time_point', self.first_time_point) + '\n')
-        logfile.write(common.str_variable('last_time_point', self.last_time_point) + '\n')
+        common.PrefixedParameter.write_parameters_in_file(self, logfile)
 
-        logfile.write(common.str_variable('input_image', self.input_image) + '\n')
-        logfile.write(common.str_variable('output_image', self.output_image) + '\n')
-        logfile.write(common.str_variable('mapping_file', self.mapping_file) + '\n')
+        for line in self.doc['manualcorrection_overview'].splitlines():
+            logfile.write('# ' + line + '\n')
+
+        self.varwrite(logfile, 'first_time_point', self.first_time_point, self.doc['first_time_point'])
+        self.varwrite(logfile, 'last_time_point', self.last_time_point, self.doc['last_time_point'])
+
+        self.varwrite(logfile, 'input_image', self.input_image, self.doc['input_image'])
+        self.varwrite(logfile, 'output_image', self.output_image, self.doc['output_image'])
+        self.varwrite(logfile, 'mapping_file', self.mapping_file, self.doc['mapping_file'])
+
+        self.varwrite(logfile, 'smallest_cells', self.smallest_cells, self.doc['smallest_cells'])
+        self.varwrite(logfile, 'largest_cells', self.largest_cells, self.doc['largest_cells'])
 
         logfile.write("\n")
         return

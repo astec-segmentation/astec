@@ -37,6 +37,9 @@ class IntraRegParameters(common.PrefixedParameter):
 
         common.PrefixedParameter.__init__(self, prefix=['intra_registration_'])
 
+        if "doc" not in self.__dict__:
+            self.doc = {}
+
         #
         # Co-registration parameters
         #
@@ -53,21 +56,66 @@ class IntraRegParameters(common.PrefixedParameter):
         # (defined for the reference image)
         #
 
+        doc = "\t defines the still image after transformation compositions\n"
+        doc += "\t it will only translated, except if 'reference_transformation_file'\n"
+        doc += "\t or 'reference_transformation_angles' are given\n"
+        doc += "\t \n"
+        self.doc['reference_index'] = doc
         self.reference_index = None
+
+        doc = "\t resampling transformation to be applied to the reference\n"
+        doc += "\t image (and to the whole serie) after transformation \n"
+        doc += "\t compositions.\n"
+        doc += "\t \n"
+        self.doc['reference_transformation_file'] = doc
         self.reference_transformation_file = None
+
+        doc = "\t list of rotations wrt the X, Y,or Z axis that defines the\n"
+        doc += "\t resampling transformation. \n"
+        doc += "\t syntax: 'X 30 Y 50' means a rotation of 30 degree around\n"
+        doc += "\t X followed by a rotation of 50 around Y\n"
+        doc += "\t beware: rotation composition depends on the order, so\n"
+        doc += "\t 'X 30 Y 50' is not equivalent to 'Y 50 X 30'\n"
+        self.doc['reference_transformation_angles'] = doc
         self.reference_transformation_angles = None
 
         #
         # intra-sequence transformation parameters
         # input template, ie how to define the useful information to be kept
         #
+        doc = "\t Possible values are 'FUSION', 'SEGMENTATION', or 'POST-SEGMENTATION'\n"
+        doc += "\t The template is built so that the useful information of\n"
+        doc += "\t all resampled images fits into it. Useful information\n"
+        doc += "\t can be issued from either the fused sequence, the segmentation\n"
+        doc += "\t sequence or the post-segmentation sequence. \n"
+        self.doc['template_type'] = doc
         self.template_type = "FUSION"
+
+        doc = "\t Giving a threshold with the 'template_type', only points\n"
+        doc += "\t above the threshold are considered to be included in the\n"
+        doc += "\t template after resampling, this allows to reduce the template.\n"
+        doc += "\t According the background value is either 0 or 1 in both the\n"
+        doc += "\t segmentation and the post-segmentation sequences, setting\n"
+        doc += "\t this threshold to 2 for these sequences allows to keep the\n"
+        doc += "\t entire embryo in the resampled/reconstructed sequence.\n"
+        self.doc['template_threshold'] = doc
         self.template_threshold = None
+
+        doc = "\t In addition, a margin can be given for a more comfortable\n"
+        doc += "\t visualization. By default, it is 0 when only fusion\n"
+        doc += "\t images are used, and 10 if either segmentation or\n"
+        doc += "\t post-segmentation images are also used\n"
+        self.doc['margin'] = doc
         self.margin = None
 
         #
         # output template
         #
+        doc = "\t gives the resulting (isotropic) voxel size (as the \n"
+        doc += "\t 'target_resolution' gives the voxel size of the fused images).\n"
+        doc += "\t However, for visualization purposes, it may be indicated to\n"
+        doc += "\t have a larger voxel size (hence the 0.6 instead of 0.3)\n"
+        self.doc['resolution'] = doc
         self.resolution = 0.6
 
         #
@@ -75,35 +123,108 @@ class IntraRegParameters(common.PrefixedParameter):
         # useful when transformations have already been computed for fused image as template
         # they can re-used for segmentation images as template
         #
+        doc = "\t Possible values are True or False\n"
+        doc += "\t if True, force to recompute the template as well as the \n"
+        doc += "\t transformations from the co-registrations (that are not\n"
+        doc += "\t re-computed). It is useful when a first intra-registration\n"
+        doc += "\t has been done with only the fusion images: a second\n"
+        doc += "\t  intra-registration with the segmentation images as template \n"
+        doc += "\t can be done without recomputing the co-registration\n"
+        self.doc['rebuild_template'] = doc
         self.rebuild_template = False
 
         #
         # resampling parameters
         #
+        doc = "\t Sigma to smooth (post-)segmentation images when resampling\n"
+        self.doc['sigma_segmentation_images'] = doc
         self.sigma_segmentation_images = 1.0
 
+        doc = "\t Possible values are True or False\n"
+        self.doc['resample_fusion_images'] = doc
         self.resample_fusion_images = True
+        doc = "\t Possible values are True or False \n"
+        self.doc['resample_segmentation_images'] = doc
         self.resample_segmentation_images = False
+        doc = "\t Possible values are True or False \n"
+        self.doc['resample_post_segmentation_images'] = doc
         self.resample_post_segmentation_images = False
 
+        doc = "\t Possible values are True or False\n"
+        doc += "\t To build 2D+t movies from the resampled fusion images.\n"
+        self.doc['movie_fusion_images'] = doc
         self.movie_fusion_images = True
+
+        doc = "\t Possible values are True or False\n"
+        doc += "\t To build 2D+t movies from the resampled segmentation .\n"
+        doc += "\t images\n"
+        self.doc['movie_segmentation_images'] = doc
         self.movie_segmentation_images = False
+
+        doc = "\t Possible values are True or False\n"
+        doc += "\t To build 2D+t movies from the resampled post-segmentation.\n"
+        doc += "\t images\n"
+        self.doc['movie_post_segmentation_images'] = doc
         self.movie_post_segmentation_images = False
 
+        doc = "\t List of XY-sections used to build the 2D+t movies\n"
+        doc += "\t eg 'xy_movie_fusion_images = [100, 200]'\n"
+        self.doc['xy_movie_fusion_images'] = doc
         self.xy_movie_fusion_images = []
+
+        doc = "\t List of XZ-sections used to build the 2D+t movies\n"
+        self.doc['xz_movie_fusion_images'] = doc
         self.xz_movie_fusion_images = []
+
+        doc = "\t List of YZ-sections used to build the 2D+t movies\n"
+        self.doc['yz_movie_fusion_images'] = doc
         self.yz_movie_fusion_images = []
 
+        doc = "\t List of XY-sections used to build the 2D+t movies\n"
+        doc += "\t eg 'xy_movie_segmentation_images = [100, 200]'\n"
+        self.doc['xy_movie_segmentation_images'] = doc
         self.xy_movie_segmentation_images = []
+
+        doc = "\t List of XZ-sections used to build the 2D+t movies\n"
+        self.doc['xz_movie_segmentation_images'] = doc
         self.xz_movie_segmentation_images = []
+
+        doc = "\t List of YZ-sections used to build the 2D+t movies\n"
+        self.doc['yz_movie_segmentation_images'] = doc
         self.yz_movie_segmentation_images = []
 
+        doc = "\t List of XY-sections used to build the 2D+t movies\n"
+        doc += "\t eg 'xy_movie_segmentation_images = [100, 200]'\n"
+        self.doc['xy_movie_post_segmentation_images'] = doc
         self.xy_movie_post_segmentation_images = []
+
+        doc = "\t List of XZ-sections used to build the 2D+t movies\n"
+        self.doc['xz_movie_post_segmentation_images'] = doc
         self.xz_movie_post_segmentation_images = []
+
+        doc = "\t List of YZ-sections used to build the 2D+t movies\n"
+        self.doc['yz_movie_post_segmentation_images'] = doc
         self.yz_movie_post_segmentation_images = []
 
+        doc = "\t Possible values are True or False\n"
+        doc += "\t build a maximum image from the resampled series\n"
+        doc += "\t it may be useful to define a cropping valid area\n"
+        doc += "\t for the whole sequence\n"
+        self.doc['maximum_fusion_images'] = doc
         self.maximum_fusion_images = False
+
+        doc = "\t Possible values are True or False\n"
+        doc += "\t build a maximum image from the resampled series\n"
+        doc += "\t it may be useful to define a cropping valid area\n"
+        doc += "\t for the whole sequence\n"
+        self.doc['maximum_segmentation_images'] = doc
         self.maximum_segmentation_images = False
+
+        doc = "\t Possible values are True or False\n"
+        doc += "\t build a maximum image from the resampled series\n"
+        doc += "\t it may be useful to define a cropping valid area\n"
+        doc += "\t for the whole sequence\n"
+        self.doc['maximum_post_segmentation_images'] = doc
         self.maximum_post_segmentation_images = False
 
     ############################################################
@@ -117,6 +238,7 @@ class IntraRegParameters(common.PrefixedParameter):
         print('#')
         print('# IntraRegParameters')
         print('#')
+        print("")
 
         common.PrefixedParameter.print_parameters(self)
 
@@ -130,50 +252,65 @@ class IntraRegParameters(common.PrefixedParameter):
         # intra-sequence transformation parameters
         #
 
-        self.varprint('reference_index', self.reference_index)
-        self.varprint('reference_transformation_file', self.reference_transformation_file)
-        self.varprint('reference_transformation_angles', self.reference_transformation_angles)
+        self.varprint('reference_index', self.reference_index, self.doc['reference_index'])
+        self.varprint('reference_transformation_file', self.reference_transformation_file,
+                      self.doc['reference_transformation_file'])
+        self.varprint('reference_transformation_angles', self.reference_transformation_angles,
+                      self.doc['reference_transformation_angles'])
 
-        self.varprint('template_type', self.template_type)
-        self.varprint('template_threshold', self.template_threshold)
-        self.varprint('margin', self.margin)
+        self.varprint('template_type', self.template_type, self.doc['template_type'])
+        self.varprint('template_threshold', self.template_threshold, self.doc['template_threshold'])
+        self.varprint('margin', self.margin, self.doc['margin'])
 
-        self.varprint('resolution', self.resolution)
+        self.varprint('resolution', self.resolution, self.doc['resolution'])
 
-        self.varprint('rebuild_template', self.rebuild_template)
+        self.varprint('rebuild_template', self.rebuild_template, self.doc['rebuild_template'])
 
         #
         # resampling parameters
         #
 
-        self.varprint('sigma_segmentation_images', self.sigma_segmentation_images)
-        self.varprint('resample_fusion_images', self.resample_fusion_images)
-        self.varprint('resample_segmentation_images', self.resample_segmentation_images)
-        self.varprint('resample_post_segmentation_images', self.resample_post_segmentation_images)
+        self.varprint('sigma_segmentation_images', self.sigma_segmentation_images,
+                      self.doc['sigma_segmentation_images'])
+        self.varprint('resample_fusion_images', self.resample_fusion_images, self.doc['resample_fusion_images'])
+        self.varprint('resample_segmentation_images', self.resample_segmentation_images,
+                      self.doc['resample_segmentation_images'])
+        self.varprint('resample_post_segmentation_images', self.resample_post_segmentation_images,
+                      self.doc['resample_post_segmentation_images'])
 
         #
         # movie parameters
         #
 
-        self.varprint('movie_fusion_images', self.movie_fusion_images)
-        self.varprint('movie_segmentation_images', self.movie_segmentation_images)
-        self.varprint('movie_post_segmentation_images', self.movie_post_segmentation_images)
+        self.varprint('movie_fusion_images', self.movie_fusion_images, self.doc['movie_fusion_images'])
+        self.varprint('movie_segmentation_images', self.movie_segmentation_images,
+                      self.doc['movie_segmentation_images'])
+        self.varprint('movie_post_segmentation_images', self.movie_post_segmentation_images,
+                      self.doc['movie_post_segmentation_images'])
 
-        self.varprint('xy_movie_fusion_images', self.xy_movie_fusion_images)
-        self.varprint('xz_movie_fusion_images', self.xz_movie_fusion_images)
-        self.varprint('yz_movie_fusion_images', self.yz_movie_fusion_images)
+        self.varprint('xy_movie_fusion_images', self.xy_movie_fusion_images, self.doc['xy_movie_fusion_images'])
+        self.varprint('xz_movie_fusion_images', self.xz_movie_fusion_images, self.doc['xz_movie_fusion_images'])
+        self.varprint('yz_movie_fusion_images', self.yz_movie_fusion_images, self.doc['yz_movie_fusion_images'])
 
-        self.varprint('xy_movie_segmentation_images', self.xy_movie_segmentation_images)
-        self.varprint('xz_movie_segmentation_images', self.xz_movie_segmentation_images)
-        self.varprint('yz_movie_segmentation_images', self.yz_movie_segmentation_images)
+        self.varprint('xy_movie_segmentation_images', self.xy_movie_segmentation_images,
+                      self.doc['xy_movie_segmentation_images'])
+        self.varprint('xz_movie_segmentation_images', self.xz_movie_segmentation_images,
+                      self.doc['xz_movie_segmentation_images'])
+        self.varprint('yz_movie_segmentation_images', self.yz_movie_segmentation_images,
+                      self.doc['yz_movie_segmentation_images'])
 
-        self.varprint('xy_movie_post_segmentation_images', self.xy_movie_post_segmentation_images)
-        self.varprint('xz_movie_post_segmentation_images', self.xz_movie_post_segmentation_images)
-        self.varprint('yz_movie_post_segmentation_images', self.yz_movie_post_segmentation_images)
+        self.varprint('xy_movie_post_segmentation_images', self.xy_movie_post_segmentation_images,
+                      self.doc['xy_movie_post_segmentation_images'])
+        self.varprint('xz_movie_post_segmentation_images', self.xz_movie_post_segmentation_images,
+                      self.doc['xz_movie_post_segmentation_images'])
+        self.varprint('yz_movie_post_segmentation_images', self.yz_movie_post_segmentation_images,
+                      self.doc['yz_movie_post_segmentation_images'])
 
-        self.varprint('maximum_fusion_images', self.maximum_fusion_images)
-        self.varprint('maximum_segmentation_images', self.maximum_segmentation_images)
-        self.varprint('maximum_post_segmentation_images', self.maximum_post_segmentation_images)
+        self.varprint('maximum_fusion_images', self.maximum_fusion_images, self.doc['maximum_fusion_images'])
+        self.varprint('maximum_segmentation_images', self.maximum_segmentation_images,
+                      self.doc['maximum_segmentation_images'])
+        self.varprint('maximum_post_segmentation_images', self.maximum_post_segmentation_images,
+                      self.doc['maximum_post_segmentation_images'])
 
         print("")
         return
@@ -183,6 +320,7 @@ class IntraRegParameters(common.PrefixedParameter):
         logfile.write('#\n')
         logfile.write('# IntraRegParameters\n')
         logfile.write('#\n')
+        logfile.write("\n")
 
         common.PrefixedParameter.write_parameters_in_file(self, logfile)
 
@@ -196,50 +334,69 @@ class IntraRegParameters(common.PrefixedParameter):
         # intra-sequence transformation parameters
         #
 
-        self.varwrite(logfile, 'reference_index', self.reference_index)
-        self.varwrite(logfile, 'reference_transformation_file', self.reference_transformation_file)
-        self.varwrite(logfile, 'reference_transformation_angles', self.reference_transformation_angles)
+        self.varwrite(logfile, 'reference_index', self.reference_index, self.doc['reference_index'])
+        self.varwrite(logfile, 'reference_transformation_file', self.reference_transformation_file,
+                      self.doc['reference_transformation_file'])
+        self.varwrite(logfile, 'reference_transformation_angles', self.reference_transformation_angles,
+                      self.doc['reference_transformation_angles'])
 
-        self.varwrite(logfile, 'template_type', self.template_type)
-        self.varwrite(logfile, 'template_threshold', self.template_threshold)
-        self.varwrite(logfile, 'margin', self.margin)
+        self.varwrite(logfile, 'template_type', self.template_type, self.doc['template_type'])
+        self.varwrite(logfile, 'template_threshold', self.template_threshold, self.doc['template_threshold'])
+        self.varwrite(logfile, 'margin', self.margin, self.doc['margin'])
 
-        self.varwrite(logfile, 'resolution', self.resolution)
+        self.varwrite(logfile, 'resolution', self.resolution, self.doc['resolution'])
 
-        self.varwrite(logfile, 'rebuild_template', self.rebuild_template)
+        self.varwrite(logfile, 'rebuild_template', self.rebuild_template, self.doc['rebuild_template'])
 
         #
         # resampling parameters
         #
 
-        self.varwrite(logfile, 'sigma_segmentation_images', self.sigma_segmentation_images)
-        self.varwrite(logfile, 'resample_fusion_images', self.resample_fusion_images)
-        self.varwrite(logfile, 'resample_segmentation_images', self.resample_segmentation_images)
-        self.varwrite(logfile, 'resample_post_segmentation_images', self.resample_post_segmentation_images)
+        self.varwrite(logfile, 'sigma_segmentation_images', self.sigma_segmentation_images,
+                      self.doc['sigma_segmentation_images'])
+        self.varwrite(logfile, 'resample_fusion_images', self.resample_fusion_images,
+                      self.doc['resample_fusion_images'])
+        self.varwrite(logfile, 'resample_segmentation_images', self.resample_segmentation_images,
+                      self.doc['resample_segmentation_images'])
+        self.varwrite(logfile, 'resample_post_segmentation_images', self.resample_post_segmentation_images,
+                      self.doc['resample_post_segmentation_images'])
 
         #
         # movie parameters
         #
 
-        self.varwrite(logfile, 'movie_fusion_images', self.movie_fusion_images)
-        self.varwrite(logfile, 'movie_segmentation_images', self.movie_segmentation_images)
-        self.varwrite(logfile, 'movie_post_segmentation_images', self.movie_post_segmentation_images)
+        self.varwrite(logfile, 'movie_fusion_images', self.movie_fusion_images, self.doc['movie_fusion_images'])
+        self.varwrite(logfile, 'movie_segmentation_images', self.movie_segmentation_images,
+                      self.doc['movie_segmentation_images'])
+        self.varwrite(logfile, 'movie_post_segmentation_images', self.movie_post_segmentation_images,
+                      self.doc['movie_post_segmentation_images'])
 
-        self.varwrite(logfile, 'xy_movie_fusion_images', self.xy_movie_fusion_images)
-        self.varwrite(logfile, 'xz_movie_fusion_images', self.xz_movie_fusion_images)
-        self.varwrite(logfile, 'yz_movie_fusion_images', self.yz_movie_fusion_images)
+        self.varwrite(logfile, 'xy_movie_fusion_images', self.xy_movie_fusion_images,
+                      self.doc['xy_movie_fusion_images'])
+        self.varwrite(logfile, 'xz_movie_fusion_images', self.xz_movie_fusion_images,
+                      self.doc['xz_movie_fusion_images'])
+        self.varwrite(logfile, 'yz_movie_fusion_images', self.yz_movie_fusion_images,
+                      self.doc['yz_movie_fusion_images'])
 
-        self.varwrite(logfile, 'xy_movie_segmentation_images', self.xy_movie_segmentation_images)
-        self.varwrite(logfile, 'xz_movie_segmentation_images', self.xz_movie_segmentation_images)
-        self.varwrite(logfile, 'yz_movie_segmentation_images', self.yz_movie_segmentation_images)
+        self.varwrite(logfile, 'xy_movie_segmentation_images', self.xy_movie_segmentation_images,
+                      self.doc['xy_movie_segmentation_images'])
+        self.varwrite(logfile, 'xz_movie_segmentation_images', self.xz_movie_segmentation_images,
+                      self.doc['xz_movie_segmentation_images'])
+        self.varwrite(logfile, 'yz_movie_segmentation_images', self.yz_movie_segmentation_images,
+                      self.doc['yz_movie_segmentation_images'])
 
-        self.varwrite(logfile, 'xy_movie_post_segmentation_images', self.xy_movie_post_segmentation_images)
-        self.varwrite(logfile, 'xz_movie_post_segmentation_images', self.xz_movie_post_segmentation_images)
-        self.varwrite(logfile, 'yz_movie_post_segmentation_images', self.yz_movie_post_segmentation_images)
+        self.varwrite(logfile, 'xy_movie_post_segmentation_images', self.xy_movie_post_segmentation_images,
+                      self.doc['xy_movie_post_segmentation_images'])
+        self.varwrite(logfile, 'xz_movie_post_segmentation_images', self.xz_movie_post_segmentation_images,
+                      self.doc['xz_movie_post_segmentation_images'])
+        self.varwrite(logfile, 'yz_movie_post_segmentation_images', self.yz_movie_post_segmentation_images,
+                      self.doc['yz_movie_post_segmentation_images'])
 
-        self.varwrite(logfile, 'maximum_fusion_images', self.maximum_fusion_images)
-        self.varwrite(logfile, 'maximum_segmentation_images', self.maximum_segmentation_images)
-        self.varwrite(logfile, 'maximum_post_segmentation_images', self.maximum_post_segmentation_images)
+        self.varwrite(logfile, 'maximum_fusion_images', self.maximum_fusion_images, self.doc['maximum_fusion_images'])
+        self.varwrite(logfile, 'maximum_segmentation_images', self.maximum_segmentation_images,
+                      self.doc['maximum_segmentation_images'])
+        self.varwrite(logfile, 'maximum_post_segmentation_images', self.maximum_post_segmentation_images,
+                      self.doc['maximum_post_segmentation_images'])
 
         logfile.write("\n")
         return

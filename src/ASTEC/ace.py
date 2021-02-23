@@ -68,47 +68,110 @@ class AceParameters(common.PrefixedParameter):
     ############################################################
 
     def __init__(self, prefix=None):
-
         common.PrefixedParameter.__init__(self, prefix=prefix)
+
+        if "doc" not in self.__dict__:
+            self.doc = {}
+
+        doc = "\n"
+        doc += "G(l)ace parameters overview:\n"
+        doc += "============================\n"
+        doc += "G(l)ace is a membrane-enhancement procedure. It works as follows\n"
+        doc += "- an extrema image, corresponding to thethe membrane centers, is\n"
+        doc += "  computed, thanks to a hessian based filtering\n"
+        doc += "- these extrema are thresholded to get a binary image\n"
+        doc += "  Thresholds are automatically computed from histograms of the\n"
+        doc += "  extrema image"
+        doc += "  - Gace: the threshold is computed globally\n"
+        doc += "  - Glace: thresholds are computed on a cell-based manner\n"
+        doc += "    One threshold is computed per cell, and the binary sub-images\n"
+        doc += "    are fused afterwards. The cells are the cells at t-1 deformed on\n"
+        doc += "    t. Works only in the propagation segmentation stage.\n"
+        doc += "- the binary image is extended through a tensor voting procedure\n"
+        doc += "- this last image is smoothed\n"
+        doc += "\n"
+        self.doc['ace_overview'] = doc
 
         #
         # parameters for filtering and membrane extrema extraction
         #
+        doc = "\t Sigma of the gaussian used to compute the derivatives and thus\n"
+        doc += "\t the extrema image. In real units.\n"
+        self.doc['sigma_membrane'] = doc
         self.sigma_membrane = 0.9
 
         #
         # parameters for binarization
         #
+        doc = "\t Possible values are True or False.\n"
+        doc += "\t Should not be set to True.\n"
+        doc += "\t If True, used the threshold 'hard_thresholding' to\n"
+        doc += "\t binarize the extrema image\n"
+        self.doc['hard_thresholding'] = doc
         self.hard_thresholding = False
+
+        doc = "\t Threshold value when 'hard_thresholding' is set to True\n"
+        self.doc['hard_threshold'] = doc
         self.hard_threshold = 1.0
 
+        doc = "\t Possible values are True or False.\n"
+        doc += "\t Should not be set to True.\n"
+        doc += "\t If True, allows to tune the parameter 'manual_sigma' to compute \n"
+        doc += "\t threshold from the histogram.\n"
+        self.doc['manual'] = doc
         self.manual = False
+
+        doc = "\t Axial histograms fitting initialization parameter\n"
+        doc += "\t for the computation of membrane image binarization\n"
+        doc += "\t Values have to be chosen in [5, 25]\n"
+        self.doc['manual_sigma'] = doc
         self.manual_sigma = 15
+
+        doc = "\t  membrane binarization parameter\n"
+        self.doc['sensitivity'] = doc
         self.sensitivity = 0.99
 
         #
         # parameters for tensor voting
         #
-        self.sigma_TV = 3.6
+        doc = "\t Sigma that defines the voting scale for membrane\n"
+        doc += "\t In real units\n"
+        self.doc['sigma_TV'] = doc
+        self.sigma_TV = 1.08
+
+        doc = "\t Sigma to smooth the image after tensor voting.\n"
+        doc += "\t In real units\n"
+        self.doc['sigma_LF'] = doc
         self.sigma_LF = 0.9
+
+        doc = "\t fraction of the points used for tensor voting.\n"
+        doc += "\t 1.0: all the points are used.\n"
+        doc += "\t the more the points, the longest the computation.\n"
+        self.doc['sample'] = doc
         self.sample = 0.2
+
+        doc = "\t Random seed to be used when drawing points for the\n"
+        doc += "\t tensor voting. Allows to reproduce an experiment when\n"
+        doc += "\t 'sample' is less than 1.0. The used random seed can be \n"
+        doc += "\t found in the log file.\n"
+        self.doc['sample_random_seed'] = doc
         self.sample_random_seed = None
 
         #
         # for cell-based enhancement
         # dilation (in real unit)
         #
+        doc = "\t Dilation radius for the cell bounding boxes\n"
+        doc += "\t Used to compute local histograms\n"
+        self.doc['bounding_box_dilation'] = doc
         self.bounding_box_dilation = 3.6
 
         #
         #
         #
+        doc = "\t Number of processors for parallelization\n"
+        self.doc['processors'] = doc
         self.processors = 7
-
-        #
-        #
-        #
-        self.default_image_suffix = 'mha'
 
     ############################################################
     #
@@ -121,26 +184,30 @@ class AceParameters(common.PrefixedParameter):
         print('#')
         print('# AceParameters')
         print('#')
+        print("")
         
         common.PrefixedParameter.print_parameters(self)
 
-        self.varprint('sigma_membrane', self.sigma_membrane)
+        for line in self.doc['ace_overview'].splitlines():
+            print('# ' + line)
 
-        self.varprint('hard_thresholding', self.hard_thresholding)
-        self.varprint('hard_threshold', self.hard_threshold)
+        self.varprint('sigma_membrane', self.sigma_membrane, self.doc['sigma_membrane'])
 
-        self.varprint('manual', self.manual)
-        self.varprint('manual_sigma', self.manual_sigma)
-        self.varprint('sensitivity', self.sensitivity)
+        self.varprint('hard_thresholding', self.hard_thresholding, self.doc['hard_thresholding'])
+        self.varprint('hard_threshold', self.hard_threshold, self.doc['hard_threshold'])
 
-        self.varprint('sigma_TV', self.sigma_TV)
-        self.varprint('sigma_LF', self.sigma_LF)
-        self.varprint('sample', self.sample)
-        self.varprint('sample_random_seed', self.sample_random_seed)
+        self.varprint('manual', self.manual, self.doc['manual'])
+        self.varprint('manual_sigma', self.manual_sigma, self.doc['manual_sigma'])
+        self.varprint('sensitivity', self.sensitivity, self.doc['sensitivity'])
 
-        self.varprint('bounding_box_dilation', self.bounding_box_dilation)
-        self.varprint('processors', self.processors)
-        self.varprint('default_image_suffix', self.default_image_suffix)
+        self.varprint('sigma_TV', self.sigma_TV, self.doc['sigma_TV'])
+        self.varprint('sigma_LF', self.sigma_LF, self.doc['sigma_LF'])
+
+        self.varprint('sample', self.sample, self.doc['sample'])
+        self.varprint('sample_random_seed', self.sample_random_seed, self.doc['sample_random_seed'])
+
+        self.varprint('bounding_box_dilation', self.bounding_box_dilation, self.doc['bounding_box_dilation'])
+        self.varprint('processors', self.processors, self.doc['processors'])
         print("")
         return
 
@@ -149,26 +216,29 @@ class AceParameters(common.PrefixedParameter):
         logfile.write("# \n")
         logfile.write("# AceParameters\n")
         logfile.write("# \n")
+        logfile.write("\n")
 
         common.PrefixedParameter.write_parameters_in_file(self, logfile)
 
-        self.varwrite(logfile, 'sigma_membrane', self.sigma_membrane)
+        for line in self.doc['ace_overview'].splitlines():
+            logfile.write('# ' + line + '\n')
 
-        self.varwrite(logfile, 'hard_thresholding', self.hard_thresholding)
-        self.varwrite(logfile, 'hard_threshold', self.hard_threshold)
+        self.varwrite(logfile, 'sigma_membrane', self.sigma_membrane, self.doc['sigma_membrane'])
 
-        self.varwrite(logfile, 'manual', self.manual)
-        self.varwrite(logfile, 'manual_sigma', self.manual_sigma)
-        self.varwrite(logfile, 'sensitivity', self.sensitivity)
+        self.varwrite(logfile, 'hard_thresholding', self.hard_thresholding, self.doc['hard_thresholding'])
+        self.varwrite(logfile, 'hard_threshold', self.hard_threshold, self.doc['hard_threshold'])
 
-        self.varwrite(logfile, 'sigma_TV', self.sigma_TV)
-        self.varwrite(logfile, 'sigma_LF', self.sigma_LF)
-        self.varwrite(logfile, 'sample', self.sample)
-        self.varwrite(logfile, 'sample_random_seed', self.sample_random_seed)
+        self.varwrite(logfile, 'manual', self.manual, self.doc['manual'])
+        self.varwrite(logfile, 'manual_sigma', self.manual_sigma, self.doc['manual_sigma'])
+        self.varwrite(logfile, 'sensitivity', self.sensitivity, self.doc['sensitivity'])
 
-        self.varwrite(logfile, 'bounding_box_dilation', self.bounding_box_dilation)
-        self.varwrite(logfile, 'processors', self.processors)
-        self.varwrite(logfile, 'default_image_suffix', self.default_image_suffix)
+        self.varwrite(logfile, 'sigma_TV', self.sigma_TV, self.doc['sigma_TV'])
+        self.varwrite(logfile, 'sigma_LF', self.sigma_LF, self.doc['sigma_LF'])
+        self.varwrite(logfile, 'sample', self.sample, self.doc['sample'])
+        self.varwrite(logfile, 'sample_random_seed', self.sample_random_seed, self.doc['sample_random_seed'])
+
+        self.varwrite(logfile, 'bounding_box_dilation', self.bounding_box_dilation, self.doc['bounding_box_dilation'])
+        self.varwrite(logfile, 'processors', self.processors, self.doc['processors'])
         logfile.write("\n")
         return
 
@@ -195,6 +265,7 @@ class AceParameters(common.PrefixedParameter):
 
         self.sigma_TV = self.read_parameter(parameters, 'sigma_TV', self.sigma_TV)
         self.sigma_LF = self.read_parameter(parameters, 'sigma_LF', self.sigma_LF)
+
         self.sample = self.read_parameter(parameters, 'sample', self.sample)
         self.sample_random_seed = self.read_parameter(parameters, 'sample_random_seed', self.sample_random_seed)
 
@@ -202,8 +273,6 @@ class AceParameters(common.PrefixedParameter):
                                                          self.bounding_box_dilation)
 
         self.processors = self.read_parameter(parameters, 'processors', self.processors)
-
-        self.default_image_suffix = self.read_parameter(parameters, 'default_image_suffix', self.default_image_suffix)
 
     def update_from_parameter_file(self, parameter_file):
         if parameter_file is None:
@@ -347,7 +416,7 @@ def global_membrane_enhancement(path_input, path_output, experiment, binary_inpu
             #
             tmp_prefix_name = os.path.join(temporary_path, prefix_name)
             cpp_wrapping.membrane_extraction(path_input, tmp_prefix_name, scale=parameters.sigma_membrane,
-                                             other_options = "-extension " + str(experiment.default_image_suffix),
+                                             other_options="-extension " + str(experiment.default_image_suffix),
                                              monitoring=monitoring)
 
         #
@@ -730,8 +799,8 @@ def cell_membrane_enhancement(path_input, previous_deformed_segmentation, path_o
     # gather all cell binary images
     #
 
-    bin_image = tmp_prefix_name + ".bin." + parameters.default_image_suffix
-    cpp_wrapping.create_image(bin_image, tmp_prefix_name + ".ext." + parameters.default_image_suffix, "-o 1",
+    bin_image = tmp_prefix_name + ".bin." + experiment.default_image_suffix
+    cpp_wrapping.create_image(bin_image, tmp_prefix_name + ".ext." + experiment.default_image_suffix, "-o 1",
                               monitoring=monitoring)
 
     for binary_output_cell in outputs:

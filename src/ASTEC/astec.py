@@ -47,41 +47,55 @@ class MorphoSnakeParameters(common.PrefixedParameter):
     ############################################################
 
     def __init__(self, prefix=None):
-
-        if False:
-            if prefix is None:
-                prefix = ['ms_']
-            elif type(prefix) == str:
-                if prefix != 'ms_':
-                    prefix = [prefix, 'ms_']
-            elif type(prefix) == list:
-                if 'ms_' not in prefix:
-                    prefix.append('ms_')
-            else:
-                print("Error: unhandled type '" + str(type(prefix)) + "' for prefix. Exiting.")
-                sys.exit(1)
             
         common.PrefixedParameter.__init__(self, prefix=prefix)
+
+        if "doc" not in self.__dict__:
+            self.doc = {}
 
         #
         # number of dilation iterations to get the initialization from 'previous' cell
         #
+        doc = "\t Defines the initial shape of the the morphosnake.\n"
+        doc += "\t It is the previous (deformed) cell dilated by\n"
+        doc += "\t  this amount of iterations\n"
+        self.doc['dilation_iterations'] = doc
         self.dilation_iterations = 10
         #
         # maximal number of iterations of the morphosnake
         #
+        doc = "\t Maximal number of iteration\n"
+        self.doc['iterations'] = doc
         self.iterations = 200
         #
         # threshold on the voxel number to break
         #
+        doc = "\t Threshold on the voxel count to stop the morphosnake\n"
+        doc += "\t evolution (stability is reached)\n"
+        self.doc['delta_voxel'] = doc
         self.delta_voxel = 10**3
 
+        doc = "\t Possible values are 'gradient' or 'image'\n"
+        doc += "\t 'image' should be more adapted for membrane images\n"
+        self.doc['energy'] = doc
         self.energy = 'image'
+
+        doc = "\t Weight for the morphosnake energy\n"
+        self.doc['smoothing'] = doc
         self.smoothing = 3
+
+        doc = "\t Weight for the morphosnake energy\n"
+        self.doc['balloon'] = doc
         self.balloon = 1
 
+        doc = "\t Number of processors for parallelism\n"
+        self.doc['processors'] = doc
         self.processors = 10
 
+        doc = "\t Possible values are True or False\n"
+        doc += "\t If true, mimics historical behavior.\n"
+        doc += "\t Kept for test purposes\n"
+        self.doc['mimic_historical_astec'] = doc
         self.mimic_historical_astec = False
 
     ############################################################
@@ -95,17 +109,18 @@ class MorphoSnakeParameters(common.PrefixedParameter):
         print('#')
         print('# MorphoSnakeParameters')
         print('#')
+        print("")
 
         common.PrefixedParameter.print_parameters(self)
 
-        self.varprint('dilation_iterations', self.dilation_iterations)
-        self.varprint('iterations', self.iterations)
-        self.varprint('delta_voxel', self.delta_voxel)
-        self.varprint('energy', self.energy)
-        self.varprint('smoothing', self.smoothing)
-        self.varprint('balloon', self.balloon)
-        self.varprint('processors', self.processors)
-        self.varprint('mimic_historical_astec', self.mimic_historical_astec)
+        self.varprint('dilation_iterations', self.dilation_iterations, self.doc['dilation_iterations'])
+        self.varprint('iterations', self.iterations, self.doc['iterations'])
+        self.varprint('delta_voxel', self.delta_voxel, self.doc['delta_voxel'])
+        self.varprint('energy', self.energy, self.doc['energy'])
+        self.varprint('smoothing', self.smoothing, self.doc['smoothing'])
+        self.varprint('balloon', self.balloon, self.doc['balloon'])
+        self.varprint('processors', self.processors, self.doc['processors'])
+        self.varprint('mimic_historical_astec', self.mimic_historical_astec, self.doc['mimic_historical_astec'])
         print("")
         return
 
@@ -114,17 +129,19 @@ class MorphoSnakeParameters(common.PrefixedParameter):
         logfile.write("# \n")
         logfile.write("# MorphoSnakeParameters\n")
         logfile.write("# \n")
+        logfile.write("\n")
 
         common.PrefixedParameter.write_parameters_in_file(self, logfile)
 
-        self.varwrite(logfile, 'dilation_iterations', self.dilation_iterations)
-        self.varwrite(logfile, 'iterations', self.iterations)
-        self.varwrite(logfile, 'delta_voxel', self.delta_voxel)
-        self.varwrite(logfile, 'energy', self.energy)
-        self.varwrite(logfile, 'smoothing', self.smoothing)
-        self.varwrite(logfile, 'balloon', self.balloon)
-        self.varwrite(logfile, 'processors', self.processors)
-        self.varwrite(logfile, 'mimic_historical_astec', self.mimic_historical_astec)
+        self.varwrite(logfile, 'dilation_iterations', self.dilation_iterations, self.doc['dilation_iterations'])
+        self.varwrite(logfile, 'iterations', self.iterations, self.doc['iterations'])
+        self.varwrite(logfile, 'delta_voxel', self.delta_voxel, self.doc['delta_voxel'])
+        self.varwrite(logfile, 'energy', self.energy, self.doc['energy'])
+        self.varwrite(logfile, 'smoothing', self.smoothing, self.doc['smoothing'])
+        self.varwrite(logfile, 'balloon', self.balloon, self.doc['balloon'])
+        self.varwrite(logfile, 'processors', self.processors, self.doc['processors'])
+        self.varwrite(logfile, 'mimic_historical_astec', self.mimic_historical_astec,
+                      self.doc['mimic_historical_astec'])
         logfile.write("\n")
         return
 
@@ -187,13 +204,37 @@ class AstecParameters(mars.WatershedParameters, MorphoSnakeParameters):
 
     def __init__(self, prefix="astec_"):
 
+        if "doc" not in self.__dict__:
+            self.doc = {}
+
+        doc = "\n"
+        doc += "Astec parameters overview:\n"
+        doc += "==========================\n"
+        doc += "Astec is a segmentation propagation procedure, where\n"
+        doc += "images at time t-1 are used to segment the image at time t.\n"
+        doc += "1. A first segmentation is done by a seeded watershed, where\n"
+        doc += "   the seeds are extracted from the deformed segmentation\n"
+        doc += "   image at t-1\n"
+        doc += "2. For each cell of this first segmentation, the number of\n"
+        doc += "   h-minima, for a range of h values, is studied, to decide\n"
+        doc += "   whether a division will occur or not\n"
+        doc += "3. This allows to build a new set of seeds, and then, a second\n"
+        doc += "   segmentation image.\n"
+        doc += "4. A first round of corrections corrects cells that experience\n"
+        doc += "   a decrease of volume\n"
+        doc += "5. A second round of corrections corrects cells that lose\n"
+        doc += "   with respect to the background (morphosnake corrections)\n"
+        doc += "   The morphosnakes may over-correct the cells, so this\n"
+        doc += "   correction is corrected afterwards\n"
+        doc += "\n"
+        self.doc['astec_overview'] = doc
+
         ############################################################
         #
         # initialisation
         #
         ############################################################
         mars.WatershedParameters.__init__(self, prefix=prefix)
-        self.membrane_sigma = 0.0
 
         self.seed_reconstruction = reconstruction.ReconstructionParameters(prefix=[self._prefix, "seed_"])
         self.membrane_reconstruction = reconstruction.ReconstructionParameters(prefix=[self._prefix, "membrane_"])
@@ -204,6 +245,11 @@ class AstecParameters(mars.WatershedParameters, MorphoSnakeParameters):
         #
         #
         #
+        doc = "\t Possible values are 'seeds_from_previous_segmentation', \n"
+        doc += "\t 'seeds_selection_without_correction', or None\n"
+        doc += "\t Allows to stop the propagation before all stages\n"
+        doc += "\t are completed\n"
+        self.doc['propagation_strategy'] = doc
         self.propagation_strategy = None
 
         #
@@ -215,28 +261,66 @@ class AstecParameters(mars.WatershedParameters, MorphoSnakeParameters):
         #
 
         # self.previous_seg_method = "erode_then_deform"
+        doc = "\t Possible values are 'deform_then_erode' or 'erode_then_deform'\n"
+        doc += "\t \n"
+        doc += "\t \n"
+        doc += "\t \n"
+        doc += "\t \n"
+        self.doc['previous_seg_method'] = doc
         self.previous_seg_method = "deform_then_erode"
 
+        doc = "\t Number of erosions to get any cell seed at t\n"
+        doc += "\t (except for the background) from the deformed\n"
+        doc += "\t segmentation at t\n"
+        self.doc['previous_seg_erosion_cell_iterations'] = doc
         self.previous_seg_erosion_cell_iterations = 10
+
+        doc = "\t Number of erosions to get the background seed at t\n"
+        doc += "\t from the deformed segmentation at t\n"
+        self.doc['previous_seg_erosion_background_iterations'] = doc
         self.previous_seg_erosion_background_iterations = 25
+
+        doc = "\t Minimal size of a cell from segmentation at t-1\n"
+        doc += "\t to generate a cell.\n"
+        doc += "\t Lineage of too small cell then ends at t-1\n"
+        self.doc['previous_seg_erosion_cell_min_size'] = doc
         self.previous_seg_erosion_cell_min_size = 1000
 
         #
         # astec-dedicated watershed parameters
         #
+        doc = "\t Low bound of the h range used to compute h-minima\n"
+        self.doc['watershed_seed_hmin_min_value'] = doc
         self.watershed_seed_hmin_min_value = 4
+
+        doc = "\t High bound of the h range used to compute h-minima\n"
+        self.doc['watershed_seed_hmin_max_value'] = doc
         self.watershed_seed_hmin_max_value = 18
+
+        doc = "\t Step between two successive h values when computing\n"
+        doc += "\t h-minima\n"
+        self.doc['watershed_seed_hmin_delta_value'] = doc
         self.watershed_seed_hmin_delta_value = 2
 
         #
         #
         #
+        doc = "\t Possible values are True or False\n"
+        doc += "\t Default behavior.\n"
+        self.doc['background_seed_from_hmin'] = doc
         self.background_seed_from_hmin = True
+
+        doc = "\t Possible values are True or False\n"
+        doc += "\t Kept for test purposes.\n"
+        self.doc['background_seed_from_previous'] = doc
         self.background_seed_from_previous = False
 
         #
         # to decide whether there will be division
         #
+        doc = "\t Magic threshold to decide whether a cell division\n"
+        doc += "\t will occur or not\n"
+        self.doc['seed_selection_tau'] = doc
         self.seed_selection_tau = 25
 
         #
@@ -245,23 +329,49 @@ class AstecParameters(mars.WatershedParameters, MorphoSnakeParameters):
         # and whose volume (in voxels) is below this threshold are discarded
         # they will correspond to dead-end in the lineage
         #
+        doc = "\t Volume threshold\n"
+        doc += "\t Too small 'mother' cell without corresponding\n"
+        doc += "\t 'daughter' cells will not have a lineage\n"
+        self.doc['minimum_volume_unseeded_cell'] = doc
         self.minimum_volume_unseeded_cell = 100
 
         #
         # magic values for the volume checking
         # - volume_minimal_value is in voxel units
         #
+        doc = "\t Volume ratio tolerance\n"
+        doc += "\t The volume ratio is computed by (Leo's)\n"
+        doc += "\t 1 - volume(cell at t-1) / sum volume(cells at t)\n"
+        doc += "\t Admissible cells verify\n"
+        doc += "\t - volume_ratio_tolerance <= ratio <= volume_ratio_tolerance\n"
+        self.doc['volume_ratio_tolerance'] = doc
         self.volume_ratio_tolerance = 0.1
+
+        doc = "\t Volume ratio threshold\n"
+        doc += "\t To determine whether the volume change is too small\n"
+        self.doc['volume_ratio_threshold'] = doc
         self.volume_ratio_threshold = 0.5
+
+        doc = "\t Volume threshold\n"
+        doc += "\t To determine whether a 'daughter' is large enough\n"
+        self.doc['volume_minimal_value'] = doc
         self.volume_minimal_value = 1000
 
         #
         # outer morphosnake correction
         #
+        doc = "\t Possible values are true or False\n"
+        self.doc['morphosnake_correction'] = doc
         self.morphosnake_correction = True
+
+        doc = "\t Opening size for the correction of the morphosnake\n"
+        doc += "\t correction.\n"
+        self.doc['outer_correction_radius_opening'] = doc
         self.outer_correction_radius_opening = 20
 
         # diagnosis
+        doc = "\t Possible values are True or False\n"
+        self.doc['lineage_diagnosis'] = doc
         self.lineage_diagnosis = False
 
     ############################################################
@@ -275,6 +385,12 @@ class AstecParameters(mars.WatershedParameters, MorphoSnakeParameters):
         print('#')
         print('# AstecParameters')
         print('#')
+        print("")
+
+        common.PrefixedParameter.print_parameters(self)
+
+        for line in self.doc['astec_overview'].splitlines():
+            print('# ' + line)
 
         mars.WatershedParameters.print_parameters(self)
         self.seed_reconstruction.print_parameters()
@@ -282,32 +398,42 @@ class AstecParameters(mars.WatershedParameters, MorphoSnakeParameters):
         self.morphosnake_reconstruction.print_parameters()
         MorphoSnakeParameters.print_parameters(self)
 
-        self.varprint('propagation_strategy', self.propagation_strategy)
+        self.varprint('propagation_strategy', self.propagation_strategy, self.doc['propagation_strategy'])
 
-        self.varprint('previous_seg_method', self.previous_seg_method)
-        self.varprint('previous_seg_erosion_cell_iterations', self.previous_seg_erosion_cell_iterations)
-        self.varprint('previous_seg_erosion_background_iterations', self.previous_seg_erosion_background_iterations)
-        self.varprint('previous_seg_erosion_cell_min_size', self.previous_seg_erosion_cell_min_size)
+        self.varprint('previous_seg_method', self.previous_seg_method, self.doc['previous_seg_method'])
+        self.varprint('previous_seg_erosion_cell_iterations', self.previous_seg_erosion_cell_iterations,
+                      self.doc['previous_seg_erosion_cell_iterations'])
+        self.varprint('previous_seg_erosion_background_iterations', self.previous_seg_erosion_background_iterations,
+                      self.doc['previous_seg_erosion_background_iterations'])
+        self.varprint('previous_seg_erosion_cell_min_size', self.previous_seg_erosion_cell_min_size,
+                      self.doc['previous_seg_erosion_cell_min_size'])
 
-        self.varprint('watershed_seed_hmin_min_value', self.watershed_seed_hmin_min_value)
-        self.varprint('watershed_seed_hmin_max_value', self.watershed_seed_hmin_max_value)
-        self.varprint('watershed_seed_hmin_delta_value', self.watershed_seed_hmin_delta_value)
+        self.varprint('watershed_seed_hmin_min_value', self.watershed_seed_hmin_min_value,
+                      self.doc['watershed_seed_hmin_min_value'])
+        self.varprint('watershed_seed_hmin_max_value', self.watershed_seed_hmin_max_value,
+                      self.doc['watershed_seed_hmin_max_value'])
+        self.varprint('watershed_seed_hmin_delta_value', self.watershed_seed_hmin_delta_value,
+                      self.doc['watershed_seed_hmin_delta_value'])
 
-        self.varprint('background_seed_from_hmin', self.background_seed_from_hmin)
-        self.varprint('background_seed_from_previous', self.background_seed_from_previous)
+        self.varprint('background_seed_from_hmin', self.background_seed_from_hmin,
+                      self.doc['background_seed_from_hmin'])
+        self.varprint('background_seed_from_previous', self.background_seed_from_previous,
+                      self.doc['background_seed_from_previous'])
 
-        self.varprint('seed_selection_tau', self.seed_selection_tau)
+        self.varprint('seed_selection_tau', self.seed_selection_tau, self.doc['seed_selection_tau'])
 
-        self.varprint('minimum_volume_unseeded_cell', self.minimum_volume_unseeded_cell)
+        self.varprint('minimum_volume_unseeded_cell', self.minimum_volume_unseeded_cell,
+                      self.doc['minimum_volume_unseeded_cell'])
 
-        self.varprint('volume_ratio_tolerance', self.volume_ratio_tolerance)
-        self.varprint('volume_ratio_threshold', self.volume_ratio_threshold)
-        self.varprint('volume_minimal_value', self.volume_minimal_value)
+        self.varprint('volume_ratio_tolerance', self.volume_ratio_tolerance, self.doc['volume_ratio_tolerance'])
+        self.varprint('volume_ratio_threshold', self.volume_ratio_threshold, self.doc['volume_ratio_threshold'])
+        self.varprint('volume_minimal_value', self.volume_minimal_value, self.doc['volume_minimal_value'])
 
-        self.varprint('morphosnake_correction', self.morphosnake_correction)
-        self.varprint('outer_correction_radius_opening', self.outer_correction_radius_opening)
+        self.varprint('morphosnake_correction', self.morphosnake_correction, self.doc['morphosnake_correction'])
+        self.varprint('outer_correction_radius_opening', self.outer_correction_radius_opening,
+                      self.doc['outer_correction_radius_opening'])
 
-        self.varprint('lineage_diagnosis', self.lineage_diagnosis)
+        self.varprint('lineage_diagnosis', self.lineage_diagnosis, self.doc['lineage_diagnosis'])
         print("")
 
     def write_parameters_in_file(self, logfile):
@@ -315,8 +441,12 @@ class AstecParameters(mars.WatershedParameters, MorphoSnakeParameters):
         logfile.write("# \n")
         logfile.write("# AstecParameters\n")
         logfile.write("# \n")
+        logfile.write("\n")
 
         common.PrefixedParameter.write_parameters_in_file(self, logfile)
+
+        for line in self.doc['astec_overview'].splitlines():
+            logfile.write('# ' + line + '\n')
 
         mars.WatershedParameters.write_parameters_in_file(self, logfile)
         self.seed_reconstruction.write_parameters_in_file(logfile)
@@ -324,33 +454,46 @@ class AstecParameters(mars.WatershedParameters, MorphoSnakeParameters):
         self.morphosnake_reconstruction.write_parameters_in_file(logfile)
         MorphoSnakeParameters.write_parameters_in_file(self, logfile)
 
-        self.varwrite(logfile, 'propagation_strategy', self.propagation_strategy)
+        self.varwrite(logfile, 'propagation_strategy', self.propagation_strategy, self.doc['propagation_strategy'])
 
-        self.varwrite(logfile, 'previous_seg_method', self.previous_seg_method)
-        self.varwrite(logfile, 'previous_seg_erosion_cell_iterations', self.previous_seg_erosion_cell_iterations)
+        self.varwrite(logfile, 'previous_seg_method', self.previous_seg_method, self.doc['previous_seg_method'])
+        self.varwrite(logfile, 'previous_seg_erosion_cell_iterations', self.previous_seg_erosion_cell_iterations,
+                      self.doc['previous_seg_erosion_cell_iterations'])
         self.varwrite(logfile, 'previous_seg_erosion_background_iterations',
-                      self.previous_seg_erosion_background_iterations)
-        self.varwrite(logfile, 'previous_seg_erosion_cell_min_size', self.previous_seg_erosion_cell_min_size)
+                      self.previous_seg_erosion_background_iterations,
+                      self.doc['previous_seg_erosion_background_iterations'])
+        self.varwrite(logfile, 'previous_seg_erosion_cell_min_size', self.previous_seg_erosion_cell_min_size,
+                      self.doc['previous_seg_erosion_cell_min_size'])
 
-        self.varwrite(logfile, 'watershed_seed_hmin_min_value', self.watershed_seed_hmin_min_value)
-        self.varwrite(logfile, 'watershed_seed_hmin_max_value', self.watershed_seed_hmin_max_value)
-        self.varwrite(logfile, 'watershed_seed_hmin_delta_value', self.watershed_seed_hmin_delta_value)
+        self.varwrite(logfile, 'watershed_seed_hmin_min_value', self.watershed_seed_hmin_min_value,
+                      self.doc['watershed_seed_hmin_min_value'])
+        self.varwrite(logfile, 'watershed_seed_hmin_max_value',
+                      self.watershed_seed_hmin_max_value, self.doc['watershed_seed_hmin_max_value'])
+        self.varwrite(logfile, 'watershed_seed_hmin_delta_value', self.watershed_seed_hmin_delta_value,
+                      self.doc['watershed_seed_hmin_delta_value'])
 
-        self.varwrite(logfile, 'background_seed_from_hmin', self.background_seed_from_hmin)
-        self.varwrite(logfile, 'background_seed_from_previous', self.background_seed_from_previous)
+        self.varwrite(logfile, 'background_seed_from_hmin', self.background_seed_from_hmin,
+                      self.doc['background_seed_from_hmin'])
+        self.varwrite(logfile, 'background_seed_from_previous', self.background_seed_from_previous,
+                      self.doc['background_seed_from_previous'])
 
-        self.varwrite(logfile, 'seed_selection_tau', self.seed_selection_tau)
+        self.varwrite(logfile, 'seed_selection_tau', self.seed_selection_tau, self.doc['seed_selection_tau'])
 
-        self.varwrite(logfile, 'minimum_volume_unseeded_cell', self.minimum_volume_unseeded_cell)
+        self.varwrite(logfile, 'minimum_volume_unseeded_cell', self.minimum_volume_unseeded_cell,
+                      self.doc['minimum_volume_unseeded_cell'])
 
-        self.varwrite(logfile, 'volume_ratio_tolerance', self.volume_ratio_tolerance)
-        self.varwrite(logfile, 'volume_ratio_threshold', self.volume_ratio_threshold)
-        self.varwrite(logfile, 'volume_minimal_value', self.volume_minimal_value)
+        self.varwrite(logfile, 'volume_ratio_tolerance', self.volume_ratio_tolerance,
+                      self.doc['volume_ratio_tolerance'])
+        self.varwrite(logfile, 'volume_ratio_threshold', self.volume_ratio_threshold,
+                      self.doc['volume_ratio_threshold'])
+        self.varwrite(logfile, 'volume_minimal_value', self.volume_minimal_value, self.doc['volume_minimal_value'])
 
-        self.varwrite(logfile, 'morphosnake_correction', self.morphosnake_correction)
-        self.varwrite(logfile, 'outer_correction_radius_opening', self.outer_correction_radius_opening)
+        self.varwrite(logfile, 'morphosnake_correction', self.morphosnake_correction,
+                      self.doc['morphosnake_correction'])
+        self.varwrite(logfile, 'outer_correction_radius_opening', self.outer_correction_radius_opening,
+                      self.doc['outer_correction_radius_opening'])
 
-        self.varwrite(logfile, 'lineage_diagnosis', self.lineage_diagnosis)
+        self.varwrite(logfile, 'lineage_diagnosis', self.lineage_diagnosis, self.doc['lineage_diagnosis'])
 
         logfile.write("\n")
         return
@@ -724,7 +867,7 @@ def _cell_based_h_minima(first_segmentation, cells, bounding_boxes, image_for_se
         for nb, labels, c in outputs:
             returned_n_seeds.append(nb)
             n_seeds.setdefault(c, []).append(nb)
-            parameter_seeds.setdefault(c, []).append([h_min, parameters.seed_sigma])
+            parameter_seeds.setdefault(c, []).append([h_min, parameters.seed_reconstruction.intensity_sigma])
 
         #
         # next h value
@@ -756,7 +899,6 @@ def _cell_based_h_minima(first_segmentation, cells, bounding_boxes, image_for_se
             #   and is no more required -> sigma = 0.0
             #
             wparam.seed_hmin = h_min
-            wparam.seed_sigma = 0.0
 
             input_image = difference_image
             unmasked_seed_image = common.add_suffix(image_for_seed, "_unmasked_seed_h" + str('{:03d}'.format(h_min)),
@@ -1430,7 +1572,7 @@ def _volume_decrease_correction(astec_name, previous_segmentation, segmentation_
     # 1. segmentation at previous time point
     # 2. segmentation obtained at current time point with seed selection
     # volume checking is done by comparing volume of cell at t-1
-    # with volume(s) of corresponfind cell(s) at t
+    # with volume(s) of corresponding cell(s) at t
     #
     prev_seg = imread(previous_segmentation)
     curr_seg = imread(segmentation_from_selection)

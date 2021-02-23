@@ -1,5 +1,6 @@
 #!/usr/bin/python2.7
 
+import os
 import time
 from argparse import ArgumentParser
 import sys
@@ -70,10 +71,11 @@ def _set_options(my_parser):
                            action='store_const', dest='debug', const=0,
                            help='no debug information')
 
+    help = "print the list of parameters (with explanations) in the console and exit. "
+    help += "If a parameter file is given, it is taken into account"
     my_parser.add_argument('-pp', '--print-param',
                            action='store_const', dest='printParameters',
-                           default=False, const=True,
-                           help='print parameters in console and exit')
+                           default=False, const=True, help=help)
     return
 
 
@@ -109,6 +111,15 @@ def main():
 
     monitoring.update_from_args(args)
     experiment.update_from_args(args)
+
+    if args.printParameters:
+        parameters = astec.AstecParameters()
+        if args.parameterFile is not None and os.path.isfile(args.parameterFile):
+            experiment.update_from_parameter_file(args.parameterFile)
+            parameters.update_from_parameter_file(args.parameterFile)
+        experiment.print_parameters(directories=['fusion', 'astec'])
+        parameters.print_parameters()
+        sys.exit(0)
 
     #
     # reading parameter files
@@ -173,13 +184,6 @@ def main():
 
     parameters.write_parameters(monitoring.log_filename)
 
-    #
-    # print parameters before processing
-    #
-    if args.printParameters:
-        experiment.print_parameters()
-        parameters.print_parameters()
-        sys.exit(0)
     #
     # processing
     #

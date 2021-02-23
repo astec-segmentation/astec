@@ -47,32 +47,105 @@ class PostCorrectionParameters(common.PrefixedParameter):
 
         common.PrefixedParameter.__init__(self, prefix=['postcor_', 'postcorrection_'])
 
+        if "doc" not in self.__dict__:
+            self.doc = {}
+
+        doc = "\n"
+        doc += "Post-correction overview:\n"
+        doc += "=========================\n"
+        doc += "The post-correction is twofold\n"
+        doc += "1. The lineage tree is corrected. This procedure is also\n"
+        doc += "    twofold\n"
+        doc += "  a. end branch pruning. A lineage branch that ends before\n"
+        doc += "     the last time point, or that ends at the last time point\n"
+        doc += "     with a cell of too small volume, may be fused with its\n"
+        doc += "     sister branch\n"
+        doc += "     - if it is too short\n"
+        doc += "     - if the volumes of the branch cell are anti-correlated\n"
+        doc += "       with the ones of the sister branch\n"
+        doc += "     - the division occurs too early: there is a close (in\n"
+        doc += "       time) division sooner (in the common mother branch)\n"
+        doc += "       or later (in the sister branch)\n"
+        doc += "  b. bifurcation postponing (in time). A bifurcation may\n"
+        doc += "     be postponed is the volumes of the branch cell are\n"
+        doc += "     globally anti-correlated with the ones of the sister\n"
+        doc += "     branch. The bifurcation is postponed as long as there\n"
+        doc += "     is an anti-correlation of volumes in a short sliding\n"
+        doc += "     window.\n"
+        doc += "2. The corrections are reported in the segmentation images\n"
+        doc += "   to produce the post-processed images\n"
+        doc += "\n"
+        self.doc['post_correction_overview'] = doc
+
         ############################################################
         #
         # initialisation
         #
         ############################################################
 
+        doc = "\t Cell volume threshold.\n"
+        doc += "\t Branches that ends at the last time point with\n"
+        doc += "\t a too small volume for the last cell are candidates\n"
+        doc += "\t for branch pruning.\n"
+        self.doc['volume_minimal_value'] = doc
         self.volume_minimal_value = 2000
+
+        doc = "\t Branch length threshold.\n"
+        doc += "\t Too short branches are candidates for branch pruning.\n"
+        self.doc['lifespan_minimal_value'] = doc
         self.lifespan_minimal_value = 25
 
+        doc = "\t Possible values are True or False\n"
+        self.doc['test_branch_length'] = doc
         self.test_branch_length = True
+
+        doc = "\t Possible values are True or False\n"
+        self.doc['test_early_division'] = doc
         self.test_early_division = True
+
+        doc = "\t Possible values are True or False\n"
+        self.doc['test_volume_correlation'] = doc
         self.test_volume_correlation = True
 
+        doc = "\t Anti-correlation threshold for branch pruning\n"
+        self.doc['correlation_threshold'] = doc
         self.correlation_threshold = 0.9
 
+        doc = "\t Possible values are True or False\n"
+        self.doc['test_postponing_division'] = doc
         self.test_postponing_division = True
+
+        doc = "\t Anti-correlation threshold for bifurcation postponing\n"
+        doc += "\t Used to select the branch candidate, and also\n"
+        doc += "\t used for the sliding window.\n"
+        self.doc['postponing_correlation_threshold'] = doc
         self.postponing_correlation_threshold = 0.8
+
+        doc = "\t Branch length threshold. \n"
+        doc += "\t Branch candidates for bifurcation postponing have\n"
+        doc += "\t to be long enough\n"
+        self.doc['postponing_minimal_length'] = doc
         self.postponing_minimal_length = 8
+
+        doc = "\t Sliding window length for bifurcation postponing\n"
+        self.doc['postponing_window_length'] = doc
         self.postponing_window_length = 5
 
+        doc = "\t Possible values are True or False\n"
+        doc += "\t If true, mimics historical behavior for bifurcation\n"
+        doc += "\t postponing.\n"
+        self.doc['mimic_historical_astec'] = doc
         self.mimic_historical_astec = False
 
-        #
+        doc = "\t Number of processors for parallelization\n"
+        doc += "\t Fragile\n"
+        self.doc['processors'] = doc
         self.processors = 1
 
         # diagnosis
+        doc = "\t Possible values are True or False\n"
+        doc += "\t If True, print some diagnosis on lineage\n"
+        self.doc['lineage_diagnosis'] = doc
         self.lineage_diagnosis = False
 
     ############################################################
@@ -86,26 +159,32 @@ class PostCorrectionParameters(common.PrefixedParameter):
         print('#')
         print('# PostCorrectionParameters')
         print('#')
+        print("")
         
         common.PrefixedParameter.print_parameters(self)
 
-        self.varprint('volume_minimal_value', self.volume_minimal_value)
-        self.varprint('lifespan_minimal_value', self.lifespan_minimal_value)
-        self.varprint('test_branch_length', self.test_branch_length)
-        self.varprint('test_early_division', self.test_early_division)
-        self.varprint('test_volume_correlation', self.test_volume_correlation)
-        self.varprint('correlation_threshold', self.correlation_threshold)
+        for line in self.doc['post_correction_overview'].splitlines():
+            print('# ' + line)
 
-        self.varprint('test_postponing_division', self.test_postponing_division)
-        self.varprint('postponing_correlation_threshold', self.postponing_correlation_threshold)
-        self.varprint('postponing_minimal_length', self.postponing_minimal_length)
-        self.varprint('postponing_window_length', self.postponing_window_length)
+        self.varprint('volume_minimal_value', self.volume_minimal_value, self.doc['volume_minimal_value'])
+        self.varprint('lifespan_minimal_value', self.lifespan_minimal_value, self.doc['lifespan_minimal_value'])
+        self.varprint('test_branch_length', self.test_branch_length, self.doc['test_branch_length'])
+        self.varprint('test_early_division', self.test_early_division, self.doc['test_early_division'])
+        self.varprint('test_volume_correlation', self.test_volume_correlation, self.doc['test_volume_correlation'])
+        self.varprint('correlation_threshold', self.correlation_threshold, self.doc['correlation_threshold'])
 
-        self.varprint('mimic_historical_astec', self.mimic_historical_astec)
+        self.varprint('test_postponing_division', self.test_postponing_division, self.doc['test_postponing_division'])
+        self.varprint('postponing_correlation_threshold', self.postponing_correlation_threshold,
+                      self.doc['postponing_correlation_threshold'])
+        self.varprint('postponing_minimal_length', self.postponing_minimal_length,
+                      self.doc['postponing_minimal_length'])
+        self.varprint('postponing_window_length', self.postponing_window_length, self.doc['postponing_window_length'])
 
-        self.varprint('processors', self.processors)
+        self.varprint('mimic_historical_astec', self.mimic_historical_astec, self.doc['mimic_historical_astec'])
 
-        self.varprint('lineage_diagnosis', self.lineage_diagnosis)
+        self.varprint('processors', self.processors, self.doc['processors'])
+
+        self.varprint('lineage_diagnosis', self.lineage_diagnosis, self.doc['lineage_diagnosis'])
         print("")
 
     def write_parameters_in_file(self, logfile):
@@ -113,26 +192,37 @@ class PostCorrectionParameters(common.PrefixedParameter):
         logfile.write("# \n")
         logfile.write("# PostCorrectionParameters\n")
         logfile.write("# \n")
+        logfile.write("\n")
 
         common.PrefixedParameter.write_parameters_in_file(self, logfile)
 
-        self.varwrite(logfile, 'volume_minimal_value', self.volume_minimal_value)
-        self.varwrite(logfile, 'lifespan_minimal_value', self.lifespan_minimal_value)
-        self.varwrite(logfile, 'test_branch_length', self.test_branch_length)
-        self.varwrite(logfile, 'test_early_division', self.test_early_division)
-        self.varwrite(logfile, 'test_volume_correlation', self.test_volume_correlation)
-        self.varwrite(logfile, 'correlation_threshold', self.correlation_threshold)
+        for line in self.doc['post_correction_overview'].splitlines():
+            logfile.write('# ' + line + '\n')
 
-        self.varwrite(logfile, 'test_postponing_division', self.test_postponing_division)
-        self.varwrite(logfile, 'postponing_correlation_threshold', self.postponing_correlation_threshold)
-        self.varwrite(logfile, 'postponing_minimal_length', self.postponing_minimal_length)
-        self.varwrite(logfile, 'postponing_window_length', self.postponing_window_length)
+        self.varwrite(logfile, 'volume_minimal_value', self.volume_minimal_value, self.doc['volume_minimal_value'])
+        self.varwrite(logfile, 'lifespan_minimal_value', self.lifespan_minimal_value,
+                      self.doc['lifespan_minimal_value'])
+        self.varwrite(logfile, 'test_branch_length', self.test_branch_length, self.doc['test_branch_length'])
+        self.varwrite(logfile, 'test_early_division', self.test_early_division, self.doc['test_early_division'])
+        self.varwrite(logfile, 'test_volume_correlation', self.test_volume_correlation,
+                      self.doc['test_volume_correlation'])
+        self.varwrite(logfile, 'correlation_threshold', self.correlation_threshold, self.doc['correlation_threshold'])
 
-        self.varwrite(logfile, 'mimic_historical_astec', self.mimic_historical_astec)
+        self.varwrite(logfile, 'test_postponing_division', self.test_postponing_division,
+                      self.doc['test_postponing_division'])
+        self.varwrite(logfile, 'postponing_correlation_threshold', self.postponing_correlation_threshold,
+                      self.doc['postponing_correlation_threshold'])
+        self.varwrite(logfile, 'postponing_minimal_length', self.postponing_minimal_length,
+                      self.doc['postponing_minimal_length'])
+        self.varwrite(logfile, 'postponing_window_length', self.postponing_window_length,
+                      self.doc['postponing_window_length'])
 
-        self.varwrite(logfile, 'processors', self.processors)
+        self.varwrite(logfile, 'mimic_historical_astec', self.mimic_historical_astec,
+                      self.doc['mimic_historical_astec'])
 
-        self.varwrite(logfile, 'lineage_diagnosis', self.lineage_diagnosis)
+        self.varwrite(logfile, 'processors', self.processors, self.doc['processors'])
+
+        self.varwrite(logfile, 'lineage_diagnosis', self.lineage_diagnosis, self.doc['lineage_diagnosis'])
 
         logfile.write("\n")
         return

@@ -90,7 +90,7 @@ def _launch_inline_cmd(command_line, monitoring=None):
     :return:
     """
 
-    if monitoring is not None and (monitoring.verbose >= 3 or monitoring.debug > 0):
+    if monitoring is not None and (monitoring.verbose >= 2 or monitoring.debug > 0):
         monitoring.to_log("* Launch: " + command_line)
         with open(monitoring.log_filename, 'a') as logfile:
             subprocess.call(command_line, shell=True, stdout=logfile, stderr=subprocess.STDOUT)
@@ -1008,7 +1008,7 @@ def watershed(path_seeds, path_gradient, path_output, other_options=None, monito
     return
 
 
-def global_normalization_to_u8(path_input, path_output, min_percentile=0.01, max_percentile=0.99,
+def global_intensity_normalization(path_input, path_output, min_percentile=0.01, max_percentile=0.99,
                                other_options=None, monitoring=None):
     """
 
@@ -1040,7 +1040,7 @@ def global_normalization_to_u8(path_input, path_output, min_percentile=0.01, max
     return
 
 
-def cell_normalization_to_u8(path_input, path_segmentation, path_output, min_percentile=0.01, max_percentile=0.99,
+def cell_intensity_normalization(path_input, path_segmentation, path_output, min_percentile=0.01, max_percentile=0.99,
                              cell_normalization_min_method='cellinterior',
                              cell_normalization_max_method='cellborder',
                              sigma=5.0,
@@ -1339,7 +1339,11 @@ def tensor_voting_membrane(path_input, prefix_input, path_output, path_mask=None
     if sigma_smoothing > 0.0:
         linear_smoothing(input_image, prefix_input + ".lf.inr", filter_value=sigma_smoothing,
                          real_scale=real_scale, monitoring=monitoring)
-        input_image = prefix_input + ".lf.inr"
+        if not os.path.isfile(prefix_input + ".lf.inr"):
+            msg = ": was unable to smooth tensor voting image. Too small standard deviation?!"
+            monitoring.to_log_and_console(proc + msg)
+        else:
+            input_image = prefix_input + ".lf.inr"
 
     #
     # copy into 1-byte image

@@ -42,55 +42,157 @@ class FusionParameters(common.PrefixedParameter):
     def __init__(self, prefix=None):
         common.PrefixedParameter.__init__(self, prefix=prefix)
 
+        if "doc" not in self.__dict__:
+            self.doc = {}
+
+        doc = "\n"
+        doc += "Fusion parameter overview:\n"
+        doc += "##########################\n"
+        doc += "the fusion of the 4 acquisitions follows a number of steps\n"
+        doc += "1. Optionally, a slit line correction.\n"
+        doc += "   Some Y lines may appear brighter or darker in the acquisition, which\n"
+        doc += "   may cause artifacts in the reconstructed (ie fused) image, which, in\n"
+        doc += "   turn, may impair further segmentation steps.\n"
+        doc += "2. a change of resolution in the X and Y directions only (Z remains unchanged)\n"
+        doc += "   it allows to decrease the data volume if the new pixel size is larger\n"
+        doc += "   than the acquisition one\n"
+        doc += "3. Optionally, a crop of the resampled acquisitions\n"
+        doc += "   it allows to decrease the volume of data\n"
+        doc += "   the crop is based on the analysis of a MIP view (in the Z direction) of\n"
+        doc += "   the volume\n"
+        doc += "4. Optionally, a mirroring of the 'right' image\n"
+        doc += "5. Linear registration of the 3 last images on the first one (considered as\n"
+        doc += "   the reference). The reference image is resampled again, to get an\n"
+        doc += "   isotropic voxel (same voxel size in the 3 directions: X, Y, Z) \n"
+        doc += "6. Linear combination of images, weighted by an ad-hoc function\n"
+        doc += "   The weighting functions are defined by the 'fusion_weighting' variable.\n"
+        doc += "7. Crop of the fused image\n"
+        doc += "   still based on the analysis of a MIP view (in the Z direction)\n"
+        doc += "\n"
+        self.doc['fusion_overview'] = doc
+
         #
         # acquisition parameters
         #
-        # self.acquisition_orientation
-        #   defines the rotation/transformation from S0LC (stack #0, left camera) to S1LC (stack #1, left camera)
-        #   rotation axis is the Y axis, thus the rotation pushes the Z axis towards the X axis
-        #   this transformation allows then to resample S1LC in the same frame than S0LC, and is
-        #   also the initial transformation when registering S1LC onto S0LC
-        #   'left': -90 deg rotation
-        #   'right': 90 rotation
-        #
-        # self.acquisition_mirrors
-        #   if False, we have to mirror (along the X axis) the right camera images to make them
-        #   similar to the left camera images
-        #
-        # acquisition_stack0_leftcamera_z_stacking
-        #  defines where are the high contrasted XZ-sections of the *left* camera image of stack0
-        #  'direct': small z are well contrasted (close to the camera), while large z are fuzzy
-        #            it is useful for direction-dependent weighting schemes
-        #  'inverse': the other way around
-        #
+
+        doc = "\t possible values are 'left' or 'right'.\n"
+        doc += "\t - 'right': +90 degrees\n"
+        doc += "\t - 'left': -90 degrees\n"
+        doc += "\t gives the rotation (wrt to the Y axis) of the left camera frame of\n"
+        doc += "\t stack #0 to be aligned with the the left camera frame of stack #1.\n"
+        self.doc['acquisition_orientation'] = doc
         self.acquisition_orientation = 'left'
+
+        doc = "\t possible values are True or False\n"
+        doc += "\t if False, the right camera images are mirrored to make them similar\n"
+        doc += "\t to left camera images\n"
+        doc += "\n"
+        doc += "\t To determine the configuration (raw_ori,raw_resolution) (ie ('left',False),\n"
+        doc += "\t ('left',True), ('right', False), or ('right', True)), it is advised to perform\n"
+        doc += "\t the fusion for only one time point (by setting 'begin' and 'end' at the same\n"
+        doc += "\t value) with a large 'target_resolution'\n"
+        doc += "\n"
+        self.doc['acquisition_mirrors'] = doc
         self.acquisition_mirrors = False
-        self.acquisition_stack0_leftcamera_z_stacking = 'direct'
-        self.acquisition_stack1_leftcamera_z_stacking = 'direct'
+
+        doc = "\t voxel size of acquired images\n"
+        doc += "\t example: acquisition_resolution = (.195, .195, 1.)\n"
+        self.doc['acquisition_resolution'] = doc
         self.acquisition_resolution = None
+
+        doc = "\t possible values are 'direct' or 'inverse'\n"
+        doc += "\t defines where are the high contrasted XZ-sections of the *left* camera\n"
+        doc += "\t image of stack0.\n"
+        doc += "\t - 'direct': small z are well contrasted (close to the camera), while\n"
+        doc += "\t     large z are fuzzy. It is useful for direction-dependent weighting\n"
+        doc += "\t     schemes\n"
+        doc += "\t - 'inverse': the other way around\n"
+        doc += "\t using 'acquisition_leftcamera_z_stacking' will set both\n"
+        doc += "\t 'acquisition_stack0_leftcamera_z_stacking' and \n"
+        doc += "\t 'acquisition_stack0_leftcamera_z_stacking'\n"
+        self.doc['acquisition_stack0_leftcamera_z_stacking'] = doc
+        self.acquisition_stack0_leftcamera_z_stacking = 'direct'
+        self.doc['acquisition_stack1_leftcamera_z_stacking'] = doc
+        self.acquisition_stack1_leftcamera_z_stacking = 'direct'
 
         #
         # Correction of slit lines
         #
+        doc = "\t Possible values are True or False\n"
+        doc += "\t Slit lines are Y lines that appear brighter or darker in the acquisition,\n"
+        doc += "\t which may cause artifacts in the reconstructed (ie fused) image, which, in\n"
+        doc += "\t turn, may impair further segmentation steps.\n"
+        self.doc['acquisition_slit_line_correction'] = doc
         self.acquisition_slit_line_correction = False
 
         #
         # fused image parameters
         #
+        doc = "\t Voxel size of the reconstructed image after fusion of the four views.\n"
+        doc += "\t Example: target_resolution = 0.3"
+        self.doc['target_resolution'] = doc
         self.target_resolution = (0.3, 0.3, 0.3)
 
         #
         # fusion method
         #
+        doc = "\t Possible values are 'direct-fusion' and 'hierarchical-fusion'\n"
+        doc += "\t There are two ways to perform the fusion of the 4 acquisitions:\n"
+        doc += "\t - 'direct-fusion'\n"
+        doc += "\t   each acquisition is linearly co-registered with the first acquisition\n"
+        doc += "\t   (stack #0, left camera). Then weights and images are transformed thanks\n"
+        doc += "\t   to the computed transformations. Finally a weighted linear combination\n"
+        doc += "\t    gives the result.\n"
+        doc += "\t - 'hierarchical-fusion'\n"
+        doc += "\t   from the couple (left camera, right camera), each stack is reconstructed,\n"
+        doc += "\t   following the same scheme than the direct fusion but with only 2 images.\n"
+        doc += "\t   Then stack#1 is (non-)linearly co-registered with stack #0. Images and \n"
+        doc += "\t   weights associated with stack#1 are then (non-)linearly transformed. \n"
+        doc += "\t   Finally a weighted linear combination gives the result.\n"
+        doc += "\t fusion_preregistration_* and fusion_registration_* parameters control the\n"
+        doc += "\t co-registration of two acquisitions. It is either used in the 'direct-fusion'\n"
+        doc += "\t method (to co-register each acquisition onto the first one) or in the\n"
+        doc += "\t 'hierarchical-fusion' method (to co-register couple of opposite acquisitions\n"
+        doc += "\t to reconstruct stacks).\n"
+        doc += "\t fusion_stack_preregistration_* and fusion_stack_registration_* parameters\n"
+        doc += "\t control the co-registration of two stacks. It is only used in the \n"
+        doc += "\t 'hierarchical-fusion' method (to co-register the reconstructed stacks).\n"
+        self.doc['fusion_strategy'] = doc
         self.fusion_strategy = 'direct-fusion'
 
         #
         # Cropping of acquisition images (before fusion)
         #
+        doc = "\t Possible values are True or False\n"
+        doc += "\t If True, the acquisition images are cropped along the X and Y directions.\n"
+        doc += "\t Maximum Intensity Projection (MIP) images are automatically thresholded\n"
+        doc += "\t (Otsu algorithm) to determine the bounding box of the object of interest.\n"
+        doc += "\t Margins are then added to the bounding box\n"
+        doc += "\t - 'acquisition_cropping_margin' allow to set the four margin values, i.e.\n"
+        doc += "\t   'acquisition_cropping_margin_x_0', 'acquisition_cropping_margin_x_1',\n"
+        doc += "\t   'acquisition_cropping_margin_y_0', and 'acquisition_cropping_margin_y_1' \n"
+        doc += "\t - 'acquisition_cropping_margin_x' allow to set the two margin values along X, i.e.\n"
+        doc += "\t   'acquisition_cropping_margin_x_0' and 'acquisition_cropping_margin_x_1',\n"
+        doc += "\t - 'acquisition_cropping_margin_y' allow to set the two margin values along Y, i.e.\n"
+        doc += "\t   'acquisition_cropping_margin_y_0' and 'acquisition_cropping_margin_y_1',\n"
+        self.doc['acquisition_cropping'] = doc
         self.acquisition_cropping = True
+
+        doc = "\t Added margin of the bounding box computed for the cropping of the raw\n"
+        doc += "\t acquisition image in 'left' X direction.\n"
+        self.doc['acquisition_cropping_margin_x_0'] = doc
         self.acquisition_cropping_margin_x_0 = 40
+        doc = "\t Added margin of the bounding box computed for the cropping of the raw\n"
+        doc += "\t acquisition image in 'right' X direction.\n"
+        self.doc['acquisition_cropping_margin_x_1'] = doc
         self.acquisition_cropping_margin_x_1 = 40
+        doc = "\t Added margin of the bounding box computed for the cropping of the raw\n"
+        doc += "\t acquisition image in 'left' Y direction.\n"
+        self.doc['acquisition_cropping_margin_y_0'] = doc
         self.acquisition_cropping_margin_y_0 = 40
+        doc = "\t Added margin of the bounding box computed for the cropping of the raw\n"
+        doc += "\t acquisition image in 'right' Y direction.\n"
+        self.doc['acquisition_cropping_margin_y_1'] = doc
         self.acquisition_cropping_margin_y_1 = 40
 
         #
@@ -119,15 +221,48 @@ class FusionParameters(common.PrefixedParameter):
         #
         #
         #
+        doc = "\t Possible values are True or False\n"
+        doc += "\t If True, XZ-sections XZ-sections of the co-registered image stacks,\n"
+        doc += "\t as well as the weighting function images, are stored in the directory\n"
+        doc += "\t <PATH_EMBRYO>/FUSE/FUSE_<EXP_FUSE>/XZSECTION_<xxxx> where <xxxx> is\n"
+        doc += "\t the time point index. It provides a direct and efficient means to check\n"
+        doc += "\t whether the parameter 'acquisition_leftcamera_z_stacking' is correctly set.\n"
+        self.doc['xzsection_extraction'] = doc
         self.xzsection_extraction = False
 
         #
         # Cropping of fused image (after fusion)
         #
+        doc = "\t Possible values are True or False\n"
+        doc += "\t If True, the fusion image is cropped along the X and Y directions.\n"
+        doc += "\t Maximum Intensity Projection (MIP) images are automatically thresholded\n"
+        doc += "\t (Otsu algorithm) to determine the bounding box of the object of interest.\n"
+        doc += "\t Margins are then added to the bounding box\n"
+        doc += "\t - 'fusion_cropping_margin' allow to set the four margin values, i.e.\n"
+        doc += "\t   'fusion_cropping_margin_x_0', 'fusion_cropping_margin_x_1',\n"
+        doc += "\t   'fusion_cropping_margin_y_0', and 'fusion_cropping_margin_y_1' \n"
+        doc += "\t - 'fusion_cropping_margin_x' allow to set the two margin values along X, i.e.\n"
+        doc += "\t   'fusion_cropping_margin_x_0' and 'fusion_cropping_margin_x_1',\n"
+        doc += "\t - 'fusion_cropping_margin_y' allow to set the two margin values along Y, i.e.\n"
+        doc += "\t   'fusion_cropping_margin_y_0' and 'fusion_cropping_margin_y_1',\n"
+        self.doc['fusion_cropping'] = doc
         self.fusion_cropping = True
+
+        doc = "\t Added margin of the bounding box computed for the cropping of the fusion\n"
+        doc += "\t image in 'left' X direction.\n"
+        self.doc['fusion_cropping_margin_x_0'] = doc
         self.fusion_cropping_margin_x_0 = 40
+        doc = "\t Added margin of the bounding box computed for the cropping of the fusion\n"
+        doc += "\t image in 'right' X direction.\n"
+        self.doc['fusion_cropping_margin_x_1'] = doc
         self.fusion_cropping_margin_x_1 = 40
+        doc = "\t Added margin of the bounding box computed for the cropping of the fusion\n"
+        doc += "\t image in 'left' Y direction.\n"
+        self.doc['fusion_cropping_margin_y_0'] = doc
         self.fusion_cropping_margin_y_0 = 40
+        doc = "\t Added margin of the bounding box computed for the cropping of the fusion\n"
+        doc += "\t image in 'right' Y direction.\n"
+        self.doc['fusion_cropping_margin_y_1'] = doc
         self.fusion_cropping_margin_y_1 = 40
 
     ############################################################
@@ -143,39 +278,53 @@ class FusionParameters(common.PrefixedParameter):
         print('#')
         print("")
 
+        for line in self.doc['fusion_overview'].splitlines():
+            print('# ' + line)
+
         common.PrefixedParameter.print_parameters(self)
 
-        self.varprint('acquisition_orientation', self.acquisition_orientation)
-        self.varprint('acquisition_mirrors', self.acquisition_mirrors)
-        self.varprint('acquisition_resolution', self.acquisition_resolution)
+        self.varprint('acquisition_orientation', self.acquisition_orientation, self.doc['acquisition_orientation'])
+        self.varprint('acquisition_mirrors', self.acquisition_mirrors, self.doc['acquisition_mirrors'])
+        self.varprint('acquisition_resolution', self.acquisition_resolution, self.doc['acquisition_resolution'])
 
-        self.varprint('acquisition_stack0_leftcamera_z_stacking', self.acquisition_stack0_leftcamera_z_stacking)
-        self.varprint('acquisition_stack1_leftcamera_z_stacking', self.acquisition_stack1_leftcamera_z_stacking)
+        self.varprint('acquisition_stack0_leftcamera_z_stacking', self.acquisition_stack0_leftcamera_z_stacking,
+                      self.doc['acquisition_stack0_leftcamera_z_stacking'])
+        self.varprint('acquisition_stack1_leftcamera_z_stacking', self.acquisition_stack1_leftcamera_z_stacking,
+                      self.doc['acquisition_stack1_leftcamera_z_stacking'])
 
-        self.varprint('acquisition_slit_line_correction', self.acquisition_slit_line_correction)
+        self.varprint('acquisition_slit_line_correction', self.acquisition_slit_line_correction,
+                      self.doc['acquisition_slit_line_correction'])
 
-        self.varprint('target_resolution', self.target_resolution)
+        self.varprint('target_resolution', self.target_resolution, self.doc['target_resolution'])
 
-        self.varprint('fusion_strategy', self.fusion_strategy)
+        self.varprint('fusion_strategy', self.fusion_strategy, self.doc['fusion_strategy'])
 
-        self.varprint('acquisition_cropping', self.acquisition_cropping)
-        self.varprint('acquisition_cropping_margin_x_0', self.acquisition_cropping_margin_x_0)
-        self.varprint('acquisition_cropping_margin_x_1', self.acquisition_cropping_margin_x_1)
-        self.varprint('acquisition_cropping_margin_y_0', self.acquisition_cropping_margin_y_0)
-        self.varprint('acquisition_cropping_margin_y_1', self.acquisition_cropping_margin_y_1)
+        self.varprint('acquisition_cropping', self.acquisition_cropping, self.doc['acquisition_cropping'])
+        self.varprint('acquisition_cropping_margin_x_0', self.acquisition_cropping_margin_x_0,
+                      self.doc['acquisition_cropping_margin_x_0'])
+        self.varprint('acquisition_cropping_margin_x_1', self.acquisition_cropping_margin_x_1,
+                      self.doc['acquisition_cropping_margin_x_1'])
+        self.varprint('acquisition_cropping_margin_y_0', self.acquisition_cropping_margin_y_0,
+                      self.doc['acquisition_cropping_margin_y_0'])
+        self.varprint('acquisition_cropping_margin_y_1', self.acquisition_cropping_margin_y_1,
+                      self.doc['acquisition_cropping_margin_y_1'])
 
         for p in self.acquisition_registration:
             p.print_parameters()
         for p in self.stack_registration:
             p.print_parameters()
 
-        self.varprint('xzsection_extraction', self.xzsection_extraction)
+        self.varprint('xzsection_extraction', self.xzsection_extraction, self.doc['xzsection_extraction'])
 
-        self.varprint('fusion_cropping', self.fusion_cropping)
-        self.varprint('fusion_cropping_margin_x_0', self.fusion_cropping_margin_x_0)
-        self.varprint('fusion_cropping_margin_x_1', self.fusion_cropping_margin_x_1)
-        self.varprint('fusion_cropping_margin_y_0', self.fusion_cropping_margin_y_0)
-        self.varprint('fusion_cropping_margin_y_1', self.fusion_cropping_margin_y_1)
+        self.varprint('fusion_cropping', self.fusion_cropping, self.doc['fusion_cropping'])
+        self.varprint('fusion_cropping_margin_x_0', self.fusion_cropping_margin_x_0,
+                      self.doc['fusion_cropping_margin_x_0'])
+        self.varprint('fusion_cropping_margin_x_1', self.fusion_cropping_margin_x_1,
+                      self.doc['fusion_cropping_margin_x_1'])
+        self.varprint('fusion_cropping_margin_y_0', self.fusion_cropping_margin_y_0,
+                      self.doc['fusion_cropping_margin_y_0'])
+        self.varprint('fusion_cropping_margin_y_1', self.fusion_cropping_margin_y_1,
+                      self.doc['fusion_cropping_margin_y_1'])
         print("")
 
     def write_parameters_in_file(self, logfile):
@@ -185,39 +334,57 @@ class FusionParameters(common.PrefixedParameter):
         logfile.write('#' + "\n")
         logfile.write("" + "\n")
 
+        for line in self.doc['fusion_overview'].splitlines():
+            logfile.write('# ' + line + '\n')
+
         common.PrefixedParameter.write_parameters_in_file(self, logfile)
 
-        self.varwrite(logfile, 'acquisition_orientation', self.acquisition_orientation)
-        self.varwrite(logfile, 'acquisition_mirrors', self.acquisition_mirrors)
-        self.varwrite(logfile, 'acquisition_resolution', self.acquisition_resolution)
+        self.varwrite(logfile, 'acquisition_orientation', self.acquisition_orientation,
+                      self.doc['acquisition_orientation'])
+        self.varwrite(logfile, 'acquisition_mirrors', self.acquisition_mirrors, self.doc['acquisition_mirrors'])
+        self.varwrite(logfile, 'acquisition_resolution', self.acquisition_resolution,
+                      self.doc['acquisition_resolution'])
 
-        self.varwrite(logfile, 'acquisition_stack0_leftcamera_z_stacking', self.acquisition_stack0_leftcamera_z_stacking)
-        self.varwrite(logfile, 'acquisition_stack1_leftcamera_z_stacking', self.acquisition_stack1_leftcamera_z_stacking)
+        self.varwrite(logfile, 'acquisition_stack0_leftcamera_z_stacking',
+                      self.acquisition_stack0_leftcamera_z_stacking,
+                      self.doc['acquisition_stack0_leftcamera_z_stacking'])
+        self.varwrite(logfile, 'acquisition_stack1_leftcamera_z_stacking',
+                      self.acquisition_stack1_leftcamera_z_stacking,
+                      self.doc['acquisition_stack1_leftcamera_z_stacking'])
 
-        self.varwrite(logfile, 'acquisition_slit_line_correction', self.acquisition_slit_line_correction)
+        self.varwrite(logfile, 'acquisition_slit_line_correction', self.acquisition_slit_line_correction,
+                      self.doc['acquisition_slit_line_correction'])
 
-        self.varwrite(logfile, 'target_resolution', self.target_resolution)
+        self.varwrite(logfile, 'target_resolution', self.target_resolution, self.doc['target_resolution'])
 
-        self.varwrite(logfile, 'fusion_strategy', self.fusion_strategy)
+        self.varwrite(logfile, 'fusion_strategy', self.fusion_strategy, self.doc['fusion_strategy'])
 
-        self.varwrite(logfile, 'acquisition_cropping', self.acquisition_cropping)
-        self.varwrite(logfile, 'acquisition_cropping_margin_x_0', self.acquisition_cropping_margin_x_0)
-        self.varwrite(logfile, 'acquisition_cropping_margin_x_1', self.acquisition_cropping_margin_x_1)
-        self.varwrite(logfile, 'acquisition_cropping_margin_y_0', self.acquisition_cropping_margin_y_0)
-        self.varwrite(logfile, 'acquisition_cropping_margin_y_1', self.acquisition_cropping_margin_y_1)
+        self.varwrite(logfile, 'acquisition_cropping', self.acquisition_cropping, self.doc['acquisition_cropping'])
+        self.varwrite(logfile, 'acquisition_cropping_margin_x_0', self.acquisition_cropping_margin_x_0,
+                      self.doc['acquisition_cropping_margin_x_0'])
+        self.varwrite(logfile, 'acquisition_cropping_margin_x_1', self.acquisition_cropping_margin_x_1,
+                      self.doc['acquisition_cropping_margin_x_1'])
+        self.varwrite(logfile, 'acquisition_cropping_margin_y_0', self.acquisition_cropping_margin_y_0,
+                      self.doc['acquisition_cropping_margin_y_0'])
+        self.varwrite(logfile, 'acquisition_cropping_margin_y_1', self.acquisition_cropping_margin_y_1,
+                      self.doc['acquisition_cropping_margin_y_1'])
 
         for p in self.acquisition_registration:
             p.write_parameters_in_file(logfile)
         for p in self.stack_registration:
             p.write_parameters_in_file(logfile)
 
-        self.varwrite(logfile, 'xzsection_extraction', self.xzsection_extraction)
+        self.varwrite(logfile, 'xzsection_extraction', self.xzsection_extraction, self.doc['xzsection_extraction'])
 
-        self.varwrite(logfile, 'fusion_cropping', self.fusion_cropping)
-        self.varwrite(logfile, 'fusion_cropping_margin_x_0', self.fusion_cropping_margin_x_0)
-        self.varwrite(logfile, 'fusion_cropping_margin_x_1', self.fusion_cropping_margin_x_1)
-        self.varwrite(logfile, 'fusion_cropping_margin_y_0', self.fusion_cropping_margin_y_0)
-        self.varwrite(logfile, 'fusion_cropping_margin_y_1', self.fusion_cropping_margin_y_1)
+        self.varwrite(logfile, 'fusion_cropping', self.fusion_cropping, self.doc['fusion_cropping'])
+        self.varwrite(logfile, 'fusion_cropping_margin_x_0', self.fusion_cropping_margin_x_0,
+                      self.doc['fusion_cropping_margin_x_0'])
+        self.varwrite(logfile, 'fusion_cropping_margin_x_1', self.fusion_cropping_margin_x_1,
+                      self.doc['fusion_cropping_margin_x_1'])
+        self.varwrite(logfile, 'fusion_cropping_margin_y_0', self.fusion_cropping_margin_y_0,
+                      self.doc['fusion_cropping_margin_y_0'])
+        self.varwrite(logfile, 'fusion_cropping_margin_y_1', self.fusion_cropping_margin_y_1,
+                      self.doc['fusion_cropping_margin_y_1'])
         return
 
     def write_parameters(self, log_file_name):

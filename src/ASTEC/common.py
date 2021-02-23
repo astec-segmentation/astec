@@ -177,26 +177,32 @@ class PrefixedParameter(object):
         print(spaces * ' ' + self._fulldesc(name) + str(value))
 
     def print_configuration(self, spaces=0):
-        print(spaces * ' ' + "- _prefix = " + str(self._prefix))
-        print(spaces * ' ' + "- _full_prefix = " + str(self._full_prefix))
-        print(spaces * ' ' + "- _prefixes = " + str(self._prefixes))
+        if type(self._prefixes) is list and len(self._prefixes) > 1:
+            print(spaces * ' ' + "- _prefix = " + str(self._prefix))
+            print(spaces * ' ' + "- _full_prefix = " + str(self._full_prefix))
+            print(spaces * ' ' + "- _prefixes = " + str(self._prefixes))
 
     def confwrite(self, logfile, name, value, spaces=0):
         logfile.write(spaces * ' ' + self._fulldesc(name) + str(value) + '\n')
 
     def write_configuration_in_file(self, logfile, spaces=0):
-        logfile.write(spaces * ' ' + "- _prefix = " + str(self._prefix) + '\n')
-        logfile.write(spaces * ' ' + "- _full_prefix = " + str(self._full_prefix) + '\n')
-        logfile.write(spaces * ' ' + "- _prefixes = " + str(self._prefixes) + '\n')
+        if type(self._prefixes) is list and len(self._prefixes) > 1:
+            logfile.write(spaces * ' ' + "- _prefix = " + str(self._prefix) + '\n')
+            logfile.write(spaces * ' ' + "- _full_prefix = " + str(self._full_prefix) + '\n')
+            logfile.write(spaces * ' ' + "- _prefixes = " + str(self._prefixes) + '\n')
 
-    def varprint(self, name, value):
+    def varprint(self, name, value, doc=None):
         print(str_variable(self._full_prefix + name, value))
+        if doc is not None and isinstance(doc, str) and len(doc):
+            for line in doc.splitlines():
+                print('# ' + line)
 
     def print_parameters(self):
-        print('# _prefix      = ' + str(self._prefix))
-        print('# _full_prefix = ' + str(self._full_prefix))
-        print('# _prefixes    = ' + str(self._prefixes))
-        print('#')
+        if type(self._prefixes) is list and len(self._prefixes) > 1:
+            print('# _prefix      = ' + str(self._prefix))
+            print('# _full_prefix = ' + str(self._full_prefix))
+            print('# _prefixes    = ' + str(self._prefixes))
+            print('#')
 
     def varwrite(self, logfile, name, value, doc=None):
         logfile.write(str_variable(self._full_prefix + name, value) + '\n')
@@ -205,10 +211,11 @@ class PrefixedParameter(object):
                 logfile.write('# ' + line + '\n')
 
     def write_parameters_in_file(self, logfile):
-        logfile.write('# _prefix      = ' + str(self._prefix) + '\n')
-        logfile.write('# _full_prefix = ' + str(self._full_prefix) + '\n')
-        logfile.write('# _prefixes    = ' + str(self._prefixes) + '\n')
-        logfile.write('#' + '\n')
+        if type(self._prefixes) is list and len(self._prefixes) > 1:
+            logfile.write('# _prefix      = ' + str(self._prefix) + '\n')
+            logfile.write('# _full_prefix = ' + str(self._full_prefix) + '\n')
+            logfile.write('# _prefixes    = ' + str(self._prefixes) + '\n')
+            logfile.write('#' + '\n')
 
 ##################################################
 #
@@ -478,7 +485,7 @@ def _rmtree_directory_list(directories, min_index=-1):
 #
 ##################################################
 
-class RawdataChannel(object):
+class RawdataChannel(PrefixedParameter):
 
     ############################################################
     #
@@ -487,7 +494,40 @@ class RawdataChannel(object):
     ############################################################
 
     def __init__(self, c=0):
+        PrefixedParameter.__init__(self)
+        self.doc = {}
 
+        doc = "\n"
+        doc += "Rawdata organisation overview:\n"
+        doc += "##############################\n"
+        doc += "It assumed that there are 4 acquisitions images, namely the left and\n"
+        doc += "right acquisitions of the first stack, and the left and right acquisitions\n"
+        doc += "of the second stack. They are respectively stored in the four following\n"
+        doc += "directories:\n"
+        doc += "- <PATH_EMBRYO>/<DIR_RAWDATA>/<DIR_LEFTCAM_STACKZERO>\n"
+        doc += "- <PATH_EMBRYO>/<DIR_RAWDATA>/<DIR_RIGHTCAM_STACKZERO>\n"
+        doc += "- <PATH_EMBRYO>/<DIR_RAWDATA>/<DIR_LEFTCAM_STACKONE>\n"
+        doc += "- <PATH_EMBRYO>/<DIR_RAWDATA>/<DIR_RIGHTCAM_STACKONE>\n"
+        doc += "When temporary files are kept (option -k), LEFTCAM_STACKZERO, \n"
+        doc += "RIGHTCAM_STACKZERO, LEFTCAM_STACKONE, and RIGHTCAM_STACKONE related\n"
+        doc += "filesare respectively stored in  directories\n"
+        doc += "FUSE/FUSE_<EXP_FUSE>/TEMP_<XXX>/ANGLE_[0,1,2,3]\n"
+        doc += "\n"
+        doc += "Multi-channel raw data\n"
+        doc += "Paths to the raw data (of the other channels) have also to be specified\n"
+        doc += "with the variables (X = 2 or 3) and the same path construction\n"
+        doc += "eg: <PATH_EMBRYO>/<DIR_RAWDATA_CHANNEL_X>/<DIR_LEFTCAM_STACKZERO_CHANNEL_X>\n"
+        doc += "If DIR_RAWDATA_CHANNEL_X is not given, it is replaced by DIR_RAWDATA\n"
+        doc += "or its default value. If any of the four path DIR_dirCAM_STACKx_CHANNEL_X\n"
+        doc += "is not given, it is also replaced by the main channel variable\n"
+        doc += "(DIR_dirCAM_STACKx) or its default value.\n"
+        doc += "\n"
+        self.doc['rawdata_overview'] = doc
+
+
+        doc = "\t directory where are located the subdirectories containing the"
+        doc += "\t acquisition images."
+        self.doc['_main_directory'] = doc
         self._parent_directory = None
         self._main_directory = 'RAWDATA'
         self._channel_id = c
@@ -495,6 +535,18 @@ class RawdataChannel(object):
         #
         # raw data directories
         #
+        doc = "\t <RAW_DATA> subdirectory where are stored the acquisition of the\n"
+        doc += "\t left camera of the first stack (stack #0)\n"
+        self.doc['angle0_sub_directory'] = doc
+        doc = "\t <RAW_DATA> subdirectory where are stored the acquisition of the\n"
+        doc += "\t right camera of the first stack (stack #0)\n"
+        self.doc['angle1_sub_directory'] = doc
+        doc = "\t <RAW_DATA> subdirectory where are stored the acquisition of the\n"
+        doc += "\t left camera of the second stack (stack #1)\n"
+        self.doc['angle2_sub_directory'] = doc
+        doc = "\t <RAW_DATA> subdirectory where are stored the acquisition of the\n"
+        doc += "\t right camera of the second stack (stack #1)\n"
+        self.doc['angle3_sub_directory'] = doc
         if c == 0:
             # self.angle0_sub_directory = os.path.join('LC', 'Stack0000')
             # self.angle1_sub_directory = os.path.join('RC', 'Stack0000')
@@ -527,6 +579,23 @@ class RawdataChannel(object):
         #
         #
         #
+        doc = "\t Possible values are 'uniform', 'ramp', 'corner', or 'guignard'\n"
+        doc += "\t The weighted linear combination of the 4 co-registered stacks can be tuned\n"
+        doc += "\t by the 'fusion_weighting' variable\n"
+        doc += "\t - 'uniform': uniform (or constant) weighting, it comes to the average of\n"
+        doc += "\t    the resampled co-registered stacks\n"
+        doc += "\t - 'ramp': the weights are linearly increasing or decreasing along the Z axis\n"
+        doc += "\t - 'corner': the weights are constant in a corner portion of the stack, defined \n"
+        doc += "\t   by two diagonals in the XZ-section\n"
+        doc += "\t - 'guignard': original historical weighting function, described in Leo Guignard's\n"
+        doc += "\t    Phd thesis, that puts more weight to sections close to the camera and take\n"
+        doc += "\t    also account the traversed material\n"
+        doc += "\t The variable 'fusion_weighting' allows to set the fusion weighting for all the\n"
+        doc += "\t channels to be processed. Using the variables 'fusion_weighting_channel_X'\n"
+        doc += "\t allows to set different weighting schemes for each channel. \n"
+        doc += "\t Setting the variable 'xzsection_extraction' to True allows to see the weights\n"
+        doc += "\t used for the extracted XZ sections.\n"
+        self.doc['fusion_weighting'] = doc
         self.fusion_weighting = 'guignard-weighting'
 
         #
@@ -598,20 +667,27 @@ class RawdataChannel(object):
         print('#')
         print('# RawdataChannel ' + str(self._channel_id))
         print('#')
+        print('')
+
         if self._channel_id == 0:
             ext = ''
         else:
             ext = '_CHANNEL' + str(self._channel_id)
-        print(str_variable('DIR_RAWDATA' + ext, self._main_directory))
-        print(str_variable('DIR_LEFTCAM_STACKZERO' + ext, self.angle0_sub_directory))
-        print(str_variable('DIR_RIGHTCAM_STACKZERO' + ext, self.angle1_sub_directory))
-        print(str_variable('DIR_LEFTCAM_STACKONE' + ext, self.angle2_sub_directory))
-        print(str_variable('DIR_RIGHTCAM_STACKONE' + ext, self.angle3_sub_directory))
+
+        for line in self.doc['rawdata_overview'].splitlines():
+            print('# ' + line)
+
+        self.varprint('DIR_RAWDATA' + ext, self._main_directory, self.doc['_main_directory'])
+        self.varprint('DIR_LEFTCAM_STACKZERO' + ext, self.angle0_sub_directory, self.doc['angle0_sub_directory'])
+        self.varprint('DIR_RIGHTCAM_STACKZERO' + ext, self.angle1_sub_directory, self.doc['angle1_sub_directory'])
+        self.varprint('DIR_LEFTCAM_STACKONE' + ext, self.angle2_sub_directory, self.doc['angle2_sub_directory'])
+        self.varprint('DIR_RIGHTCAM_STACKONE' + ext, self.angle3_sub_directory, self.doc['angle3_sub_directory'])
+
         if self._channel_id == 0:
             ext = ''
         else:
             ext = '_channel' + str(self._channel_id)
-        print(str_variable('fusion_weighting' + ext, self.fusion_weighting))
+        self.varprint('fusion_weighting' + ext, self.fusion_weighting, self.doc['fusion_weighting'])
         return
 
     def write_parameters_in_file(self, logfile):
@@ -619,20 +695,30 @@ class RawdataChannel(object):
         logfile.write('#' + '\n')
         logfile.write('# RawdataChannel ' + str(self._channel_id) + '\n')
         logfile.write('#' + '\n')
+
         if self._channel_id == 0:
             ext = ''
         else:
             ext = '_CHANNEL_' + str(self._channel_id)
-        logfile.write(str_variable('DIR_RAWDATA' + ext, self._main_directory) + '\n')
-        logfile.write(str_variable('DIR_LEFTCAM_STACKZERO' + ext, self.angle0_sub_directory) + '\n')
-        logfile.write(str_variable('DIR_RIGHTCAM_STACKZERO' + ext, self.angle1_sub_directory) + '\n')
-        logfile.write(str_variable('DIR_LEFTCAM_STACKONE' + ext, self.angle2_sub_directory) + '\n')
-        logfile.write(str_variable('DIR_RIGHTCAM_STACKONE' + ext, self.angle3_sub_directory) + '\n')
+
+        for line in self.doc['rawdata_overview'].splitlines():
+            logfile.write('# ' + line + '\n')
+
+        self.varwrite(logfile, 'DIR_RAWDATA' + ext, self._main_directory, self.doc['_main_directory'])
+        self.varwrite(logfile, 'DIR_LEFTCAM_STACKZERO' + ext, self.angle0_sub_directory,
+                      self.doc['angle0_sub_directory'])
+        self.varwrite(logfile, 'DIR_RIGHTCAM_STACKZERO' + ext, self.angle1_sub_directory,
+                      self.doc['angle1_sub_directory'])
+        self.varwrite(logfile, 'DIR_LEFTCAM_STACKONE' + ext, self.angle2_sub_directory,
+                      self.doc['angle2_sub_directory'])
+        self.varwrite(logfile, 'DIR_RIGHTCAM_STACKONE' + ext, self.angle3_sub_directory,
+                      self.doc['angle3_sub_directory'])
+
         if self._channel_id == 0:
             ext = ''
         else:
             ext = '_channel' + str(self._channel_id)
-        logfile.write(str_variable('fusion_weighting' + ext, self.fusion_weighting) + '\n')
+        self.varwrite(logfile, 'fusion_weighting' + ext, self.fusion_weighting, self.doc['fusion_weighting'])
         return
 
     ############################################################
@@ -880,7 +966,7 @@ class RawdataSubdirectory(object):
 #
 ##################################################
 
-class GenericSubdirectory(object):
+class GenericSubdirectory(PrefixedParameter):
     """
     Class for defining sub-directories of the form
     <main_directory>/<sub_directory_prefix><sub_directory_suffix>
@@ -894,7 +980,10 @@ class GenericSubdirectory(object):
     ############################################################
 
     def __init__(self):
+        PrefixedParameter.__init__(self)
 
+        if "doc" not in self.__dict__:
+            self.doc = {}
         #
         # how to build sub-directory names
         # _parent_directory is /path/to/experiment
@@ -1289,7 +1378,12 @@ class FuseSubdirectory(GenericSubdirectory):
 
     def __init__(self):
         GenericSubdirectory.__init__(self)
+        if "doc" not in self.__dict__:
+            self.doc = {}
         self._main_directory = 'FUSE'
+        doc = "\t suffix to built fusion image subdirectory name, that is\n"
+        doc += "\t <PATH_EMBRYO>/FUSE/FUSE_<EXP_FUSE>/\n"
+        self.doc['EXP_FUSE'] = doc
         self._sub_directory_prefix = 'FUSE_'
         self._sub_directory_suffix = 'RELEASE'
         self._file_suffix = "_fuse"
@@ -1308,11 +1402,11 @@ class FuseSubdirectory(GenericSubdirectory):
         GenericSubdirectory.write_configuration_in_file(self, logfile)
 
     def print_parameters(self):
-        print(str_variable('EXP_FUSE', self._sub_directory_suffix))
+        self.varprint('EXP_FUSE', self._sub_directory_suffix, self.doc['EXP_FUSE'])
         return
 
     def write_parameters_in_file(self, logfile):
-        logfile.write(str_variable('EXP_FUSE', self._sub_directory_suffix) + '\n')
+        self.varwrite(logfile, 'EXP_FUSE', self._sub_directory_suffix, self.doc['EXP_FUSE'])
         return
 
     def update_from_parameters(self, parameters):
@@ -1347,6 +1441,9 @@ class IntraregSubdirectory(GenericSubdirectory):
     def __init__(self):
         GenericSubdirectory.__init__(self)
         self._main_directory = 'INTRAREG'
+        doc = "\t suffix to built intra-registration image subdirectory name, that is\n"
+        doc += "\t <PATH_EMBRYO>/INTRAREG/INTRAREG_<EXP_INTRAREG>/\n"
+        self.doc['EXP_INTRAREG'] = doc
         self._sub_directory_prefix = 'INTRAREG_'
         self._sub_directory_suffix = 'RELEASE'
         self._file_suffix = "_intrareg"
@@ -1363,11 +1460,11 @@ class IntraregSubdirectory(GenericSubdirectory):
         GenericSubdirectory.write_configuration_in_file(self, logfile)
 
     def print_parameters(self):
-        print(str_variable('EXP_INTRAREG', self._sub_directory_suffix))
+        self.varprint('EXP_INTRAREG', self._sub_directory_suffix, self.doc['EXP_INTRAREG'])
         return
 
     def write_parameters_in_file(self, logfile):
-        logfile.write(str_variable('EXP_INTRAREG', self._sub_directory_suffix) + '\n')
+        self.varwrite(logfile, 'EXP_INTRAREG', self._sub_directory_suffix, self.doc['EXP_INTRAREG'])
         return
 
     def update_from_parameters(self, parameters):
@@ -1388,6 +1485,11 @@ class MarsSubdirectory(GenericSubdirectory):
     def __init__(self):
         GenericSubdirectory.__init__(self)
         self._main_directory = 'SEG'
+        doc = "\t suffix to built mars image subdirectory name, that is\n"
+        doc += "\t <PATH_EMBRYO>/SEG/SEG_<EXP_MARS>/\n"
+        doc += "\t It is convenient to set EXP_MARS to the same value than\n"
+        doc += "\t EXP_SEG.\n"
+        self.doc['EXP_MARS'] = doc
         self._sub_directory_prefix = 'SEG_'
         self._sub_directory_suffix = 'RELEASE'
         self._file_suffix = "_mars"
@@ -1404,11 +1506,11 @@ class MarsSubdirectory(GenericSubdirectory):
         GenericSubdirectory.write_configuration_in_file(self, logfile)
 
     def print_parameters(self):
-        print(str_variable('EXP_MARS', self._sub_directory_suffix))
+        self.varprint('EXP_MARS', self._sub_directory_suffix, self.doc['EXP_MARS'])
         return
 
     def write_parameters_in_file(self, logfile):
-        logfile.write(str_variable('EXP_MARS', self._sub_directory_suffix) + '\n')
+        self.varwrite(logfile, 'EXP_MARS', self._sub_directory_suffix, self.doc['EXP_MARS'])
         return
 
     def update_from_parameters(self, parameters):
@@ -1432,6 +1534,9 @@ class AstecSubdirectory(GenericSubdirectory):
     def __init__(self):
         GenericSubdirectory.__init__(self)
         self._main_directory = 'SEG'
+        doc = "\t suffix to built segmentation image subdirectory name, that is\n"
+        doc += "\t <PATH_EMBRYO>/SEG/SEG_<EXP_SEG>/\n"
+        self.doc['EXP_SEG'] = doc
         self._sub_directory_prefix = 'SEG_'
         self._sub_directory_suffix = 'RELEASE'
         self._file_suffix = "_seg"
@@ -1448,11 +1553,11 @@ class AstecSubdirectory(GenericSubdirectory):
         GenericSubdirectory.write_configuration_in_file(self, logfile)
 
     def print_parameters(self):
-        print(str_variable('EXP_SEG', self._sub_directory_suffix))
+        self.varprint('EXP_SEG', self._sub_directory_suffix, self.doc['EXP_SEG'])
         return
 
     def write_parameters_in_file(self, logfile):
-        logfile.write(str_variable('EXP_SEG', self._sub_directory_suffix) + '\n')
+        self.varwrite(logfile, 'EXP_SEG', self._sub_directory_suffix, self.doc['EXP_SEG'])
         return
 
     def update_from_parameters(self, parameters):
@@ -1473,6 +1578,9 @@ class PostSubdirectory(GenericSubdirectory):
     def __init__(self):
         GenericSubdirectory.__init__(self)
         self._main_directory = 'POST'
+        doc = "\t suffix to built post-processed image subdirectory name, that is\n"
+        doc += "\t <PATH_EMBRYO>/POST/POST_<EXP_POST>/\n"
+        self.doc['EXP_POST'] = doc
         self._sub_directory_prefix = 'POST_'
         self._sub_directory_suffix = 'RELEASE'
         self._file_suffix = "_post"
@@ -1489,11 +1597,11 @@ class PostSubdirectory(GenericSubdirectory):
         GenericSubdirectory.write_configuration_in_file(self, logfile)
 
     def print_parameters(self):
-        print(str_variable('EXP_POST', self._sub_directory_suffix))
+        self.varprint('EXP_POST', self._sub_directory_suffix, self.doc['EXP_POST'])
         return
 
     def write_parameters_in_file(self, logfile):
-        logfile.write(str_variable('EXP_POST', self._sub_directory_suffix) + '\n')
+        self.varwrite(logfile, 'EXP_POST', self._sub_directory_suffix, self.doc['EXP_POST'])
         return
 
     def update_from_parameters(self, parameters):
@@ -1510,7 +1618,7 @@ class PostSubdirectory(GenericSubdirectory):
 ##################################################
 
 
-class Experiment(object):
+class Experiment(PrefixedParameter):
 
     ############################################################
     #
@@ -1519,17 +1627,49 @@ class Experiment(object):
     ############################################################
 
     def __init__(self):
+        PrefixedParameter.__init__(self)
 
+        self.doc = {}
+
+        doc = "\t path to the embryo data, e.g. '/media/DATA/171107-Karine-St8'\n"
+        doc += "\t if not present the actual directory is used\n"
+        self.doc['_embryo_path'] = doc
         self._embryo_path = None
+        doc = "\t Embryo Name.\n"
+        doc += "\t CRBM naming format is YYMMDD-SaintOfTheDays-Stage,\n"
+        doc += "\t eg: '171107-Karine-St8'\n"
+        doc += "\t (automatically extracted from the path to the embryo data\n"
+        doc += "\t  if not provided)\n"
+        self.doc['_embryo_name'] = doc
         self._embryo_name = None
 
+        doc = "\t first time point of the series to be processed\n"
+        self.doc['first_time_point'] = doc
         self.first_time_point = None
+        doc = "\t last time point of the series to be processed\n"
+        doc += "\t When testing or tuning parameters, it is advised not to\n"
+        doc += "\t processed the whole series, but only one or a few time\n"
+        doc += "\t points.\n"
+        self.doc['last_time_point'] = doc
         self.last_time_point = None
         self.restart_time_point = None
+        doc = "\t time interval between two time points.\n"
+        doc += "\t fragile\n"
+        self.doc['delta_time_point'] = doc
         self.delta_time_point = 1
+        doc = "\t increment to to be added to the time values (ie values in range\n"
+        doc += "\t [begin,end]) when generating image names.\n"
+        doc += "\t eg: acquisition at time point 't' results in the fused image\n"
+        doc += "\t  at time 't+raw_delay'. Fragile.\n"
+        self.doc['delay_time_point'] = doc
         self.delay_time_point = 0
 
+        doc = "\t Number of digits to encode the time point in file names. Fragile.\n"
+        self.doc['_time_digits_for_filename'] = doc
         self._time_digits_for_filename = 3
+        doc = "\t Number of digits to encode the time point in cell unique\n"
+        doc += "\t identifier. Fragile\n"
+        self.doc['_time_digits_for_cell_id'] = doc
         self._time_digits_for_cell_id = 4
 
         #
@@ -1556,9 +1696,20 @@ class Experiment(object):
         #
         # images suffixes/formats
         #
+        doc = "\t Possible values are 'inr', 'mha', tif'\n"
+        doc += "\t Defines the image format for all output images.\n"
+        doc += "\t 'mha' is recommended\n"
+        self.doc['result_image_suffix'] = doc
         self.result_image_suffix = 'mha'
+        doc = "\t Possible values are 'inr', 'mha', tif'\n"
+        doc += "\t Defines the image format for all output images, plus the \n"
+        doc += "\t auxiliary ones (in the TEMP_<xxx> directory)\n"
+        doc += "\t 'mha' is recommended\n"
+        self.doc['default_image_suffix'] = doc
         self.default_image_suffix = 'mha'
-
+        doc = "\t Possible values are 'xml', 'pkl'\n"
+        doc = "\t Defines the lineage and properties file format\n"
+        self.doc['result_lineage_suffix'] = doc
         self.result_lineage_suffix = 'xml'
 
     ############################################################
@@ -1650,59 +1801,79 @@ class Experiment(object):
                 logfile.write("\n")
         return
 
-    def print_parameters(self):
+    def print_parameters(self, directories=None):
         print('')
         print('#')
         print('# Experiment parameters')
         print('#')
-        print(str_variable('PATH_EMBRYO', self._embryo_path))
-        print(str_variable('EN', self._embryo_name))
-        print(str_variable('begin', self.first_time_point))
-        print(str_variable('end', self.last_time_point))
-        print(str_variable('delta', self.delta_time_point))
-        print(str_variable('raw_delay', self.delay_time_point))
-        print(str_variable('time_digits_for_filename', self._time_digits_for_filename))
-        print(str_variable('time_digits_for_cell_id', self._time_digits_for_cell_id))
+        print('')
 
-        self.rawdata_dir.print_parameters()
-        self.fusion_dir.print_parameters()
-        self.mars_dir.print_parameters()
-        self.astec_dir.print_parameters()
-        self.post_dir.print_parameters()
-        self.intrareg_dir.print_parameters()
+        self.varprint('PATH_EMBRYO', self._embryo_path, self.doc['_embryo_path'])
+        self.varprint('EN', self._embryo_name, self.doc['_embryo_name'])
+        self.varprint('begin', self.first_time_point, self.doc['first_time_point'])
+        self.varprint('end', self.last_time_point, self.doc['last_time_point'])
+        self.varprint('delta', self.delta_time_point, self.doc['delta_time_point'])
+        self.varprint('raw_delay', self.delay_time_point, self.doc['delay_time_point'])
+
+        self.varprint('time_digits_for_filename', self._time_digits_for_filename, self.doc['_time_digits_for_filename'])
+        self.varprint('time_digits_for_cell_id', self._time_digits_for_cell_id, self.doc['_time_digits_for_cell_id'])
+
+        if directories is None or (type(directories) == list and 'rawdata' in directories):
+            self.rawdata_dir.print_parameters()
+        if directories is None or (type(directories) == list and 'fusion' in directories):
+            self.fusion_dir.print_parameters()
+        if directories is None or (type(directories) == list and 'mars' in directories):
+            self.mars_dir.print_parameters()
+        if directories is None or (type(directories) == list and 'astec' in directories):
+            self.astec_dir.print_parameters()
+        if directories is None or (type(directories) == list and 'post' in directories):
+            self.post_dir.print_parameters()
+        if directories is None or (type(directories) == list and 'intrareg' in directories):
+            self.intrareg_dir.print_parameters()
 
         print('')
-        print(str_variable('result_image_suffix', self.result_image_suffix))
-        print(str_variable('default_image_suffix', self.default_image_suffix))
-        print(str_variable('result_lineage_suffix', self.result_lineage_suffix))
+        self.varprint('result_image_suffix', self.result_image_suffix, self.doc['result_image_suffix'])
+        self.varprint('default_image_suffix', self.default_image_suffix, self.doc['default_image_suffix'])
+        self.varprint('result_lineage_suffix', self.result_lineage_suffix, self.doc['result_lineage_suffix'])
         print('')
         return
 
-    def write_parameters_in_file(self, logfile):
+    def write_parameters_in_file(self, logfile, directories=None):
         logfile.write('\n')
         logfile.write('#' + '\n')
         logfile.write('# Experiment parameters' + '\n')
         logfile.write('#' + '\n')
-        logfile.write(str_variable('PATH_EMBRYO', self._embryo_path) + '\n')
-        logfile.write(str_variable('EN', self._embryo_name) + '\n')
-        logfile.write(str_variable('begin', self.first_time_point) + '\n')
-        logfile.write(str_variable('end', self.last_time_point) + '\n')
-        logfile.write(str_variable('delta', self.delta_time_point) + '\n')
-        logfile.write(str_variable('raw_delay', self.delay_time_point) + '\n')
-        logfile.write(str_variable('time_digits_for_filename', self._time_digits_for_filename) + '\n')
-        logfile.write(str_variable('time_digits_for_cell_id', self._time_digits_for_cell_id) + '\n')
+        logfile.write('\n')
 
-        self.rawdata_dir.write_parameters_in_file(logfile)
-        self.fusion_dir.write_parameters_in_file(logfile)
-        self.mars_dir.write_parameters_in_file(logfile)
-        self.astec_dir.write_parameters_in_file(logfile)
-        self.post_dir.write_parameters_in_file(logfile)
-        self.intrareg_dir.write_parameters_in_file(logfile)
+        self.varwrite(logfile, 'PATH_EMBRYO', self._embryo_path, self.doc['_embryo_path'])
+        self.varwrite(logfile, 'EN', self._embryo_name, self.doc['_embryo_name'])
+        self.varwrite(logfile, 'begin', self.first_time_point, self.doc['first_time_point'])
+        self.varwrite(logfile, 'end', self.last_time_point, self.doc['last_time_point'])
+        self.varwrite(logfile, 'delta', self.delta_time_point, self.doc['delta_time_point'])
+        self.varwrite(logfile, 'raw_delay', self.delay_time_point, self.doc['delay_time_point'])
+
+        self.varwrite(logfile, 'time_digits_for_filename', self._time_digits_for_filename,
+                      self.doc['_time_digits_for_filename'])
+        self.varwrite(logfile, 'time_digits_for_cell_id', self._time_digits_for_cell_id,
+                      self.doc['_time_digits_for_cell_id'])
+
+        if directories is None or (type(directories) == list and 'rawdata' in directories):
+            self.rawdata_dir.write_parameters_in_file(logfile)
+        if directories is None or (type(directories) == list and 'fusion' in directories):
+            self.fusion_dir.write_parameters_in_file(logfile)
+        if directories is None or (type(directories) == list and 'mars' in directories):
+            self.mars_dir.write_parameters_in_file(logfile)
+        if directories is None or (type(directories) == list and 'astec' in directories):
+            self.astec_dir.write_parameters_in_file(logfile)
+        if directories is None or (type(directories) == list and 'post' in directories):
+            self.post_dir.write_parameters_in_file(logfile)
+        if directories is None or (type(directories) == list and 'intrareg' in directories):
+            self.intrareg_dir.write_parameters_in_file(logfile)
 
         logfile.write('\n')
-        logfile.write(str_variable('result_image_suffix', self.result_image_suffix) + '\n')
-        logfile.write(str_variable('default_image_suffix', self.default_image_suffix) + '\n')
-        logfile.write(str_variable('result_lineage_suffix', self.result_lineage_suffix) + '\n')
+        self.varwrite(logfile, 'result_image_suffix', self.result_image_suffix, self.doc['result_image_suffix'])
+        self.varwrite(logfile, 'default_image_suffix', self.default_image_suffix, self.doc['default_image_suffix'])
+        self.varwrite(logfile, 'result_lineage_suffix', self.result_lineage_suffix, self.doc['result_lineage_suffix'])
         logfile.write('\n')
         return
 
@@ -2119,26 +2290,93 @@ class RegistrationParameters(PrefixedParameter):
     ############################################################
 
     def __init__(self, prefix=None):
-
         PrefixedParameter.__init__(self, prefix=prefix)
 
+        if "doc" not in self.__dict__:
+            self.doc = {}
+
         #
         #
         #
+        doc = "\t possible values are True or False\n"
+        self.doc['compute_registration'] = doc
         self.compute_registration = True
 
         #
         # parameters
         #
+        doc = "\t Highest level of the pyramid image use for registration\n"
+        doc = "\t \n"
+        doc += "\t Registration is performed within a hierarchical scheme, ie\n"
+        doc += "\t an image pyramid is built, with the image dimensions \n"
+        doc += "\t decreasing from one pyramid level to the next. The \n"
+        doc += "\t registration starts at the highest pyramid level (the \n"
+        doc += "\t smallest image so the pyramid) and ends at the lowest\n"
+        doc += "\t level.\n"
+        doc += "\t 0 is the lowest level, ie the original image itself\n"
+        doc += "\t To go from level 'l' to level 'l+1', each image \n"
+        doc += "\t dimension is divided by 2, meaning the size of a \n"
+        doc += "\t 3D image is divided by 8.\n"
+        doc += "\t Level 1 is defined by the first value of form '2^n' \n"
+        doc += "\t immediately inferior to the image dimension, or the\n"
+        doc += "\t image dimension divided by 2 if it is already of\n"
+        doc += "\t form 2^n.\n"
+        self.doc['pyramid_highest_level'] = doc
         self.pyramid_highest_level = 6
+
+        doc = "\t Lowest level of the pyramid image use for registration\n"
+        doc += "\t Setting it to 0 means that the lowest level is with\n"
+        doc += "\t the image itself. Setting it to 1 or even 2 allows\n"
+        doc += "\t to gain computational time.\n"
+        self.doc['pyramid_lowest_level'] = doc
         self.pyramid_lowest_level = 3
+
+        doc = "\t possible values are True or False\n"
+        doc += "\t If True the image at one pyramid level is smoothed\n"
+        doc += "\t by a Gaussian kernel before building the image at\n"
+        doc += "\t the next level\n"
+        self.doc['gaussian_pyramid'] = doc
         self.gaussian_pyramid = False
+
+        doc = "\t Possible values are 'translation', 'rigid', 'similitude', \n"
+        doc += "\t 'affine' or 'vectorfield'\n"
+        self.doc['transformation_type'] = doc
         self.transformation_type = 'affine'
+
+        doc = "\t Gaussian sigma to regularize the deformation.\n"
+        doc += "\t Only for 'vectorfield' transformation.\n"
+        doc += "\t \n"
+        doc += "\t At each registration iteration, a residual deformation is\n"
+        doc += "\t computed. It is smoothed (regularized) by a gaussian of \n"
+        doc += "\t 'fluid_sigma' parameter, then compounded with the \n"
+        doc += "\t previously found transformation, and the resulting\n"
+        doc += "\t deformation is finally smoothed (regularized) by a gaussian\n"
+        doc += "\t of 'elastic_sigma' parameter.\n"
+        self.doc['elastic_sigma'] = doc
         self.elastic_sigma = 4.0
+
+        doc = "\t Possible values are 'wlts', 'lts', 'wls', or 'ls'\n"
+        doc += "\t - 'wlts': weighted least trimmed squares\n"
+        doc += "\t - 'lts': least trimmed squares\n"
+        doc += "\t - 'wls': weighted least squares\n"
+        doc += "\t - 'ls': least squares \n"
+        self.doc['transformation_estimation_type'] = doc
         self.transformation_estimation_type = 'wlts'
+
+        doc = "\t Fraction of pairings retained to compute the transformation.\n"
+        doc += "\t Only for robust estimation scheme ('wlts' or 'lts')\n"
+        self.doc['lts_fraction'] = doc
         self.lts_fraction = 0.55
+
+        doc = "\t Gaussian sigma to regularize the deformation update.\n"
+        doc += "\t Only for 'vectorfield' transformation.\n"
+        self.doc['fluid_sigma'] = doc
         self.fluid_sigma = 4.0
 
+        doc = "\t possible values are True or False. If True, the images to be registered\n"
+        doc += "\t are normalized on 1 byte for computational purposes.\n"
+        doc += "\t This variable is kept for historical reasons. Do not change it.\n"
+        self.doc['normalization'] = doc
         self.normalization = False
 
     ############################################################
@@ -2152,24 +2390,26 @@ class RegistrationParameters(PrefixedParameter):
         print('#')
         print('# RegistrationParameters')
         print('#')
+        print("")
 
         PrefixedParameter.print_parameters(self)
 
-        self.varprint('compute_registration', self.compute_registration)
+        self.varprint('compute_registration', self.compute_registration, self.doc['compute_registration'])
 
-        self.varprint('pyramid_highest_level', self.pyramid_highest_level)
-        self.varprint('pyramid_lowest_level', self.pyramid_lowest_level)
-        self.varprint('gaussian_pyramid', self.gaussian_pyramid)
+        self.varprint('pyramid_highest_level', self.pyramid_highest_level, self.doc['pyramid_highest_level'])
+        self.varprint('pyramid_lowest_level', self.pyramid_lowest_level, self.doc['pyramid_lowest_level'])
+        self.varprint('gaussian_pyramid', self.gaussian_pyramid, self.doc['gaussian_pyramid'])
 
-        self.varprint('transformation_type', self.transformation_type)
+        self.varprint('transformation_type', self.transformation_type, self.doc['transformation_type'])
 
-        self.varprint('elastic_sigma', self.elastic_sigma)
+        self.varprint('elastic_sigma', self.elastic_sigma, self.doc['elastic_sigma'])
 
-        self.varprint('transformation_estimation_type', self.transformation_estimation_type)
-        self.varprint('lts_fraction', self.lts_fraction)
-        self.varprint('fluid_sigma', self.fluid_sigma)
+        self.varprint('transformation_estimation_type', self.transformation_estimation_type,
+                      self.doc['transformation_estimation_type'])
+        self.varprint('lts_fraction', self.lts_fraction, self.doc['lts_fraction'])
+        self.varprint('fluid_sigma', self.fluid_sigma, self.doc['fluid_sigma'])
 
-        self.varprint('normalization', self.normalization)
+        self.varprint('normalization', self.normalization, self.doc['normalization'])
         print("")
         return
 
@@ -2178,24 +2418,26 @@ class RegistrationParameters(PrefixedParameter):
         logfile.write("# \n")
         logfile.write("# RegistrationParameters\n")
         logfile.write("# \n")
+        logfile.write("\n")
 
         PrefixedParameter.write_parameters_in_file(self, logfile)
 
-        self.varwrite(logfile, 'compute_registration', self.compute_registration)
+        self.varwrite(logfile, 'compute_registration', self.compute_registration, self.doc['compute_registration'])
 
-        self.varwrite(logfile, 'pyramid_highest_level', self.pyramid_highest_level)
-        self.varwrite(logfile, 'pyramid_lowest_level', self.pyramid_lowest_level)
-        self.varwrite(logfile, 'gaussian_pyramid', self.gaussian_pyramid)
+        self.varwrite(logfile, 'pyramid_highest_level', self.pyramid_highest_level, self.doc['pyramid_highest_level'])
+        self.varwrite(logfile, 'pyramid_lowest_level', self.pyramid_lowest_level, self.doc['pyramid_lowest_level'])
+        self.varwrite(logfile, 'gaussian_pyramid', self.gaussian_pyramid, self.doc['gaussian_pyramid'])
 
-        self.varwrite(logfile, 'transformation_type', self.transformation_type)
+        self.varwrite(logfile, 'transformation_type', self.transformation_type, self.doc['transformation_type'])
 
-        self.varwrite(logfile, 'elastic_sigma', self.elastic_sigma)
+        self.varwrite(logfile, 'elastic_sigma', self.elastic_sigma, self.doc['elastic_sigma'])
 
-        self.varwrite(logfile, 'transformation_estimation_type', self.transformation_estimation_type)
-        self.varwrite(logfile, 'lts_fraction', self.lts_fraction)
-        self.varwrite(logfile, 'fluid_sigma', self.fluid_sigma)
+        self.varwrite(logfile, 'transformation_estimation_type', self.transformation_estimation_type,
+                      self.doc['transformation_estimation_type'])
+        self.varwrite(logfile, 'lts_fraction', self.lts_fraction, self.doc['lts_fraction'])
+        self.varwrite(logfile, 'fluid_sigma', self.fluid_sigma, self.doc['fluid_sigma'])
 
-        self.varwrite(logfile, 'normalization', self.normalization)
+        self.varwrite(logfile, 'normalization', self.normalization, self.doc['normalization'])
 
         logfile.write("\n")
         return
