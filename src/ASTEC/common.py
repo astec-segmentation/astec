@@ -50,11 +50,12 @@ def str_variable(name, value):
     elif type(value) == int:
         s += str(value)
     elif type(value) == list:
+        s += "["
         if len(value) > 0:
             if type(value[0]) == str:
                 for i in range(len(value)):
                     s += "'" + value[i] + "'"
-                    if i < len(value):
+                    if i+1 < len(value):
                         s += ", "
             else:
                 s += "unhandled type"
@@ -2795,24 +2796,20 @@ def find_file(data_path, file_prefix, file_type=None, callfrom=None, local_monit
 
     if not os.path.isdir(data_path):
         if local_monitoring is not None:
-            local_monitoring.to_log_and_console("Error:")
             local_monitoring.to_log_and_console(proc + ": '" + str(data_path) + "' is not a valid directory ?!")
             if callfrom is not None:
                 local_monitoring.to_log_and_console("\t call from '" + str(callfrom) + "'")
-            local_monitoring.to_log_and_console("\t Exiting.")
         else:
             print(proc + ": '" + str(data_path) + "' is not a valid directory ?!")
             if callfrom is not None:
                 print("\t call from '" + str(callfrom) + "'")
-            print("\t Exiting.")
-        sys.exit(1)
+        return None
 
     if file_prefix is None:
         print(proc + ": file prefix was 'None'?!")
         if callfrom is not None:
             print("\t call from '" + str(callfrom) + "'")
-        print("\t Exiting.")
-        sys.exit(1)
+        return None
 
     #
     # if there is any extension, remove if from the file_prefix length

@@ -1240,11 +1240,11 @@ def _build_corner_weighting(image, decreasing_weight_with_z):
     dz = int(dimz/8.0)
     mz = int(dimz/2.0 + 0.5)
     # partie constante
-    for z in range(dimz-cz, dimz):
+    for z in range(dimz - cz, dimz):
         mask[:, :, z] = 1.0
     # partie variable
-    for z in range(mz-dz,dimz-cz):
-        dx = int( (z - float(dimz-cz))/ float((mz-dz)-(dimz-cz)) * float(dimx / 2.0) + 0.5)
+    for z in range(mz - dz, dimz - cz):
+        dx = int((z - float(dimz - cz)) / float((mz - dz) - (dimz - cz)) * float(dimx / 2.0) + 0.5)
         if dimx - dx > dx:
             mask[dx:dimx-dx, :, z] = 1.0
     if decreasing_weight_with_z is True:
@@ -1295,7 +1295,8 @@ def _build_unreg_weighting_image(template_image_name, weighting_image_name, decr
 
     :param template_image_name:
     :param weighting_image_name:
-    :param direction:
+    :param decreasing_weight_with_z:
+    :param fusion_weighting:
     :return:
     """
     proc = "_build_unreg_weighting_image"
@@ -1388,6 +1389,7 @@ def _get_image_shape(template_image_name):
     del im
     return shape
 
+
 def _extract_xzsection(weight_images, res_images, tmp_fused_image, channel_id, experiment):
     """
     Extract XZ sections from registered raw images and weights as well as the fused image
@@ -1412,11 +1414,12 @@ def _extract_xzsection(weight_images, res_images, tmp_fused_image, channel_id, e
     xzsection = os.path.join(d, name + "_stack0_rc_reg." + experiment.result_image_suffix)
     cpp_wrapping.ext_image(res_images[1], xzsection, options, monitoring=monitoring)
 
-    xzsection = os.path.join(d, name + "_stack1_lc_reg." + experiment.result_image_suffix)
-    cpp_wrapping.ext_image(res_images[2], xzsection, options, monitoring=monitoring)
+    if len(res_images) == 4:
+        xzsection = os.path.join(d, name + "_stack1_lc_reg." + experiment.result_image_suffix)
+        cpp_wrapping.ext_image(res_images[2], xzsection, options, monitoring=monitoring)
 
-    xzsection = os.path.join(d, name + "_stack1_rc_reg." + experiment.result_image_suffix)
-    cpp_wrapping.ext_image(res_images[3], xzsection, options, monitoring=monitoring)
+        xzsection = os.path.join(d, name + "_stack1_rc_reg." + experiment.result_image_suffix)
+        cpp_wrapping.ext_image(res_images[3], xzsection, options, monitoring=monitoring)
 
     xzsection = os.path.join(d, name + "_stack0_lc_weight." + experiment.result_image_suffix)
     cpp_wrapping.ext_image(weight_images[0], xzsection, options, monitoring=monitoring)
@@ -1424,17 +1427,17 @@ def _extract_xzsection(weight_images, res_images, tmp_fused_image, channel_id, e
     xzsection = os.path.join(d, name + "_stack0_rc_weight." + experiment.result_image_suffix)
     cpp_wrapping.ext_image(weight_images[1], xzsection, options, monitoring=monitoring)
 
-    xzsection = os.path.join(d, name + "_stack1_lc_weight." + experiment.result_image_suffix)
-    cpp_wrapping.ext_image(weight_images[2], xzsection, options, monitoring=monitoring)
+    if len(weight_images) == 4:
+        xzsection = os.path.join(d, name + "_stack1_lc_weight." + experiment.result_image_suffix)
+        cpp_wrapping.ext_image(weight_images[2], xzsection, options, monitoring=monitoring)
 
-    xzsection = os.path.join(d, name + "_stack1_rc_weight." + experiment.result_image_suffix)
-    cpp_wrapping.ext_image(weight_images[3], xzsection, options, monitoring=monitoring)
+        xzsection = os.path.join(d, name + "_stack1_rc_weight." + experiment.result_image_suffix)
+        cpp_wrapping.ext_image(weight_images[3], xzsection, options, monitoring=monitoring)
 
     xzsection = os.path.join(d, name + "_fuse." + experiment.result_image_suffix)
     cpp_wrapping.ext_image(tmp_fused_image, xzsection, options, monitoring=monitoring)
 
     return
-
 
 
 ########################################################################################
@@ -1828,7 +1831,7 @@ def _direct_fusion_process(input_image_list, the_image_list, fused_image, experi
         cpp_wrapping.linear_combination(weight_images, res_images, tmp_fused_image, monitoring=monitoring)
 
         if not os.path.isfile(tmp_fused_image):
-            monitoring.to_log_and_console(proc + ': fused image (channel #' + str(c) +') has not been generated', 0)
+            monitoring.to_log_and_console(proc + ': fused image (channel #' + str(c) + ') has not been generated', 0)
             monitoring.to_log_and_console("Exiting.", 0)
             sys.exit(1)
 
@@ -2934,7 +2937,7 @@ def _fusion_process(input_image_list, fused_image, experiment, parameters):
     #
     #
     #
-    if parameters.fusion_strategy.lower() == 'hierarchical-fusion':
+    if len(the_images) == 4 and parameters.fusion_strategy.lower() == 'hierarchical-fusion':
         monitoring.to_log_and_console("    .. hierarchical fusion", 2)
         _hierarchical_fusion_process(input_image_list, res_image_list, fused_image, experiment, parameters)
     else:
@@ -3059,14 +3062,15 @@ def _fusion_preprocess(input_images, fused_image, time_point, experiment, parame
                                        experiment.rawdata_dir.get_tmp_directory(1, c),
                                        input_images[1],
                                        parameters.acquisition_resolution, experiment.default_image_suffix))
-        images.append(_read_image_name(experiment.rawdata_dir.channel[c].get_angle_path(2),
-                                       experiment.rawdata_dir.get_tmp_directory(2, c),
-                                       input_images[2],
-                                       parameters.acquisition_resolution, experiment.default_image_suffix))
-        images.append(_read_image_name(experiment.rawdata_dir.channel[c].get_angle_path(3),
-                                       experiment.rawdata_dir.get_tmp_directory(3, c),
-                                       input_images[3],
-                                       parameters.acquisition_resolution, experiment.default_image_suffix))
+        if len(input_images) == 4:
+            images.append(_read_image_name(experiment.rawdata_dir.channel[c].get_angle_path(2),
+                                           experiment.rawdata_dir.get_tmp_directory(2, c),
+                                           input_images[2],
+                                           parameters.acquisition_resolution, experiment.default_image_suffix))
+            images.append(_read_image_name(experiment.rawdata_dir.channel[c].get_angle_path(3),
+                                           experiment.rawdata_dir.get_tmp_directory(3, c),
+                                           input_images[3],
+                                           parameters.acquisition_resolution, experiment.default_image_suffix))
         image_list.append(images)
 
     #
@@ -3375,22 +3379,22 @@ def fusion_control(experiment, parameters):
             sname = experiment.rawdata_dir.channel[0].get_image_name(2, time_value)
             sdir = experiment.rawdata_dir.channel[0].get_angle_path(2)
             im = common.find_file(sdir, sname, file_type='image', callfrom=proc, local_monitoring=monitoring)
-            if im is None:
-                monitoring.to_log_and_console("    .. image '" + sname + "' not found in '" + sdir + "'", 2)
-                monitoring.to_log_and_console("       skip time " + str(acquisition_time), 2)
-                continue
-            else:
-                images.append(im)
 
-            sname = experiment.rawdata_dir.channel[0].get_image_name(3, time_value)
-            sdir = experiment.rawdata_dir.channel[0].get_angle_path(3)
-            im = common.find_file(sdir, sname, file_type='image', callfrom=proc, local_monitoring=monitoring)
             if im is None:
                 monitoring.to_log_and_console("    .. image '" + sname + "' not found in '" + sdir + "'", 2)
-                monitoring.to_log_and_console("       skip time " + str(acquisition_time), 2)
-                continue
+                # monitoring.to_log_and_console("       skip time " + str(acquisition_time), 2)
+                monitoring.to_log_and_console("       maybe there is only one stack ", 2)
             else:
                 images.append(im)
+                sname = experiment.rawdata_dir.channel[0].get_image_name(3, time_value)
+                sdir = experiment.rawdata_dir.channel[0].get_angle_path(3)
+                im = common.find_file(sdir, sname, file_type='image', callfrom=proc, local_monitoring=monitoring)
+                if im is None:
+                    monitoring.to_log_and_console("    .. image '" + sname + "' not found in '" + sdir + "'", 2)
+                    monitoring.to_log_and_console("       skip time " + str(acquisition_time), 2)
+                    continue
+                else:
+                    images.append(im)
 
             #
             # process

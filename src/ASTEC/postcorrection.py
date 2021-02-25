@@ -1076,7 +1076,7 @@ def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment
 def contact_surface_computation(experiment, parameters):
     """
 
-    :param experiment: commonTools.Experiment
+    :param experiment:
     :param parameters:
     :return:
     """

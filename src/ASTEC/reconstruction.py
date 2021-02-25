@@ -851,7 +851,8 @@ def build_reconstructed_image(current_time, experiment, parameters, suffix=None,
         # gaussian smoothing
         #
         if parameters.intensity_sigma > 0:
-            monitoring.to_log_and_console("    .. smoothing " + str(normalized_image).split(os.path.sep)[-1] + "'", 2)
+            monitoring.to_log_and_console("    .. smoothing " + str(normalized_image).split(os.path.sep)[-1]
+                                          + "' with sigma = " + str(parameters.intensity_sigma), 2)
             other_options = "-o " + str(intensity_image_bytes)
             cpp_wrapping.linear_smoothing(normalized_image, intensity_image, parameters.intensity_sigma,
                                           real_scale=True, filter_type='deriche', border=10,

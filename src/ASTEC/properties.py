@@ -76,7 +76,7 @@ class CellPropertiesParameters(object):
 def property_computation(experiment):
     """
 
-    :param experiment: commonTools.Experiment
+    :param experiment:
     :return:
     """
 
