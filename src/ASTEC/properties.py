@@ -4,6 +4,7 @@ import imp
 import sys
 
 import cPickle as pkl
+import copy
 import xml.etree.ElementTree as ElementTree
 import numpy as np
 import math
@@ -843,6 +844,10 @@ def read_dictionary(inputfilenames, inputpropertiesdict={}):
 
     for filename in inputfilenames:
 
+        if not os.path.isfile(filename):
+            monitoring.to_log_and_console(proc + ": error, file '" + str(filename) + "' does not exist")
+            continue
+
         if filename.endswith("pkl") is True:
             propertiesdict = _read_pkl_file(filename, propertiesdict)
 
@@ -1486,8 +1491,20 @@ class DiagnosisParameters(object):
                 self.items = args.diagnosis_items
 
 
-def _diagnosis_lineage(direct_lineage, description, time_digits_for_cell_id=4):
+def _get_nodes(properties, key):
+    if key == 'cell_lineage' or key == 'cell_contact_surface':
+        d = properties[key]
+        nodes = list(set(d.keys()).union(set([v for values in d.values() for v in values])))
+        return nodes
+    if key == 'cell_volume' or key == 'cell_surface' or key == 'cell_compactness' or key == 'cell_barycenter' or \
+        key == 'cell_principal_values' or key == 'cell_names' or key == 'cell_principal_vectors':
+        return properties[key].keys()
+    if key == 'all_cells':
+        return properties[key]
+    return None
 
+
+def _diagnosis_lineage(direct_lineage, description, time_digits_for_cell_id=4):
     proc = "_diagnosis_lineage"
 
     monitoring.to_log_and_console("  === " + str(description) + " diagnosis === ", 1)
@@ -1667,8 +1684,145 @@ def _diagnosis_volume(dictionary, description, diagnosis_parameters=None, time_d
 #     return
 
 
-# def _diagnosis_name(d):
-#     return
+def _get_daughter_names(name):
+    #
+    # build daughter names from parent name
+    #
+    # anterior or posterior character 'a' or 'b'
+    # stage (round of division)
+    # '.'
+    # p value (cell index)
+    # left or right character '_' or '*'
+    #
+    abvalue = name.split('.')[0][0]
+    stage = name.split('.')[0][1:]
+    p = name.split('.')[1][0:4]
+    lrvalue = name.split('.')[1][4]
+    #
+    # build daughter names
+    #
+    daughters = [abvalue + str(int(stage) + 1) + "." + '{:0{width}d}'.format(2 * int(p) - 1, width=4) + lrvalue]
+    daughters.append(abvalue + str(int(stage) + 1) + "." + '{:0{width}d}'.format(2 * int(p), width=4) + lrvalue)
+    # print("name = " + str(name) + " -> daughter names = " + str(daughters))
+    return daughters
+
+
+def _diagnosis_name(name, lineage, description, time_digits_for_cell_id=4, verbose=True):
+    proc = "_diagnosis_name"
+
+    monitoring.to_log_and_console("  === " + str(description) + " diagnosis === ", 1)
+
+    reverse_lineage = {v: k for k, values in lineage.iteritems() for v in values}
+
+    div = 10 ** time_digits_for_cell_id
+
+    cells = list(set(lineage.keys()).union(set([v for values in lineage.values() for v in values])))
+    cells = sorted(cells)
+
+    cells_per_time = {}
+    names_per_time = {}
+    missing_name = {}
+    error_name = {}
+
+    for c in cells:
+        t = int(c) // div
+        n = int(c) % div
+        #
+        # get cells and cell names at each time point
+        #
+        if t not in cells_per_time:
+            cells_per_time[t] = [n]
+        else:
+            cells_per_time[t].append(n)
+        if c in name:
+            if t not in names_per_time:
+                names_per_time[t] = [name[c]]
+            else:
+                names_per_time[t].append(name[c])
+        #
+        # check names
+        #
+        if c not in name:
+            if t not in missing_name:
+                missing_name[t] = [n]
+            else:
+                missing_name[t].append(n)
+        elif c in reverse_lineage:
+            mother = reverse_lineage[c]
+            if mother not in name:
+                if verbose:
+                    msg = ": weird, cell " + str(c) + " has a name = " + str(name[c])
+                    msg += ", but its mother cell " + str(mother) + " has no name"
+                    monitoring.to_log_and_console(str(proc) + msg)
+                if t not in error_name:
+                    error_name[t] = [n]
+                else:
+                    names_per_time[t].append(n)
+            else:
+                if len(lineage[mother]) == 1:
+                    if name[mother] != name[c]:
+                        if verbose:
+                            msg = ": weird, cell " + str(c) + " has a name = " + str(name[c])
+                            msg += " different than its mother cell " + str(mother) + " name = " + str(name[mother])
+                            monitoring.to_log_and_console(str(proc) + msg)
+                        if t not in error_name:
+                            error_name[t] = [n]
+                        else:
+                            error_name[t].append(n)
+                elif len(lineage[mother]) == 2:
+                    daughter_names = _get_daughter_names(name[mother])
+                    if name[c] not in daughter_names:
+                        if verbose:
+                            msg = ": weird, name of cell " + str(c) + " is " + str(name[c])
+                            msg += " but should be in " + str(daughter_names)
+                            msg += " since its mother cell " + str(mother) + " is named " + str(name[mother])
+                            monitoring.to_log_and_console(str(proc) + msg)
+                        if t not in error_name:
+                            error_name[t] = [n]
+                        else:
+                            error_name[t].append(n)
+                    else:
+                        siblings = copy.deepcopy(lineage[mother])
+                        siblings.remove(c)
+                        daughter_names.remove(name[c])
+                        if siblings[0] not in name:
+                            if verbose:
+                                msg = ": weird, cell " + str(c) + " has no name "
+                                msg += ", it should be " + str(daughter_names[0])
+                                msg += " since its mother cell " + str(mother) + " is named " + str(name[mother])
+                                msg += " and its sibling " + str(c) + " is named " + str(name[c])
+                                monitoring.to_log_and_console(str(proc) + msg)
+                            if t not in error_name:
+                                error_name[t] = [n]
+                            else:
+                                error_name[t].append(n)
+                        elif name[siblings[0]] == name[c]:
+                            if verbose:
+                                msg = ": weird, name of cell " + str(c) + ", " + str(name[c])
+                                msg += ", is the same than its sibling " + str(siblings[0])
+                                msg += ", their mother cell " + str(mother) + " is named " + str(name[mother])
+                                monitoring.to_log_and_console(str(proc) + msg)
+                            if t not in error_name:
+                                error_name[t] = [n]
+                            else:
+                                error_name[t].append(n)
+                        elif name[siblings[0]] != daughter_names[0]:
+                            if verbose:
+                                msg = ": weird, name of cell " + str(siblings[0]) + " is " + str(name[siblings[0]])
+                                msg += " but should be " + str(daughter_names[0])
+                                msg += " since its mother cell " + str(mother) + " is named " + str(name[mother])
+                                msg += " and its sibling " + str(c) + " is named " + str(name[c])
+                                monitoring.to_log_and_console(str(proc) + msg)
+                            if t not in error_name:
+                                error_name[t] = [n]
+                            else:
+                                error_name[t].append(n)
+                else:
+                    if verbose:
+                        monitoring.to_log_and_console(str(proc) + ": weird, cell " + str(mother) + " has " +
+                                                      str(len(lineage[mother])) + " daughter cells")
+
+    return
 
 
 # def _diagnosis_contact(d):
@@ -1683,28 +1837,70 @@ def _diagnosis_volume(dictionary, description, diagnosis_parameters=None, time_d
 #     return
 
 
-def diagnosis(d, features, diagnosis_parameters):
+def diagnosis(d, features, diagnosis_parameters, time_digits_for_cell_id=4):
     """
 
     :param d:
     :param features:
     :param diagnosis_parameters:
+    :param time_digits_for_cell_id:
     :return:
     """
 
     # monitoring.to_log_and_console("\n", 1)
     monitoring.to_log_and_console("... diagnosis", 1)
 
+    monitoring.to_log_and_console("  === cell/key diagnosis === ", 1)
+    div = 10 ** time_digits_for_cell_id
+    # get nodes (ie cells) for each property
+    # remove background
+    nodes = {}
+    for k in d.keys():
+        nodes[k] = _get_nodes(d, k)
+        if nodes[k] is None:
+            del nodes[k]
+            continue
+        for c in nodes[k]:
+            if int(c) % div == 1 or int(c) % div == 0:
+                nodes[k].remove(c)
+    #
+    # background cells may remain, remove them again
+    #
+    for k in nodes:
+        for c in nodes[k]:
+            if int(c) % div == 1 or int(c) % div == 0:
+                nodes[k].remove(c)
+
+    for k1 in nodes:
+        for k2 in nodes:
+            if k1 >= k2:
+                continue
+            if len(set(nodes[k1]).union(nodes[k2])) > len(set(nodes[k1]).intersection(nodes[k2])):
+                diff = list(set(nodes[k1]).difference(set(nodes[k2])))
+                if len(diff) > 0:
+                    diff.sort()
+                    monitoring.to_log_and_console("  - " + str(len(diff)) + " nodes are in '" + str(k1) +
+                                                  "' and not in '" + str(k2) + "'", 1)
+                    _print_list(diff, time_digits_for_cell_id=time_digits_for_cell_id)
+                diff = list(set(nodes[k2]).difference(set(nodes[k1])))
+                if len(diff) > 0:
+                    diff.sort()
+                    monitoring.to_log_and_console("  - " + str(len(diff)) + " nodes are in '" + str(k2) +
+                                                  "' and not in '" + str(k1) + "'", 1)
+                    _print_list(diff, time_digits_for_cell_id=time_digits_for_cell_id)
+
     if features is None or len(features) == 0:
         for k in d:
             if k == keydictionary['lineage']['output_key']:
-                _diagnosis_lineage(d[k], k)
+                _diagnosis_lineage(d[k], k, time_digits_for_cell_id=time_digits_for_cell_id)
             elif k == keydictionary['h_min']['output_key']:
                 pass
                 # monitoring.to_log_and_console("    diagnosis of '" + str(k) + "' not implemented yet", 1)
             elif k == keydictionary['volume']['output_key']:
                 _diagnosis_volume(d[k], k, diagnosis_parameters=diagnosis_parameters)
             elif k == keydictionary['surface']['output_key']:
+                pass
+            elif k == keydictionary['compactness']['output_key']:
                 pass
             elif k == keydictionary['sigma']['output_key']:
                 pass
@@ -1725,7 +1921,8 @@ def diagnosis(d, features, diagnosis_parameters):
                 pass
                 # monitoring.to_log_and_console("    diagnosis of '" + str(k) + "' not implemented yet", 1)
             elif k == keydictionary['name']['output_key']:
-                pass
+                _diagnosis_name(d[k], d[keydictionary['lineage']['output_key']], k,
+                                time_digits_for_cell_id=time_digits_for_cell_id)
                 # monitoring.to_log_and_console("    diagnosis of '" + str(k) + "' not implemented yet", 1)
             elif k == keydictionary['contact']['output_key']:
                 pass
@@ -1777,7 +1974,8 @@ def diagnosis(d, features, diagnosis_parameters):
                         pass
                         # monitoring.to_log_and_console("    diagnosis of '" + str(k) + "' not implemented yet", 1)
                     elif outk == keydictionary['name']['output_key']:
-                        pass
+                        _diagnosis_name(d[outk], d[keydictionary['lineage']['output_key']], outk,
+                                        time_digits_for_cell_id=time_digits_for_cell_id)
                         # monitoring.to_log_and_console("    diagnosis of '" + str(k) + "' not implemented yet", 1)
                     elif outk == keydictionary['contact']['output_key']:
                         pass
@@ -1798,7 +1996,7 @@ def diagnosis(d, features, diagnosis_parameters):
 
 ########################################################################################
 #
-#
+# diagnosis
 #
 ########################################################################################
 
@@ -1924,6 +2122,179 @@ def check_volume_image(volume_from_lineage, image_name, current_time, time_digit
         monitoring.to_log_and_console("  - " + str(len(volume_error))
                                       + " cells with different volume in image and volume dictionary: ", 1)
         _print_list(volume_error, time_digits_for_cell_id=time_digits_for_cell_id)
+    return
+
+
+########################################################################################
+#
+#
+#
+########################################################################################
+
+def _find_fate(cell_fate, name):
+    for n, v in cell_fate.iteritems():
+        if name[:-1] in v[0]:
+            return n
+    return None
+
+
+def compute_fate(d, fate=4, time_digits_for_cell_id=4):
+    proc = "compute_fate"
+
+    cell_fate2 = {
+        'Anterior Endoderm': (["a7.0001", "a7.0002", "a7.0005"], 1),
+        'Posterior Endoderm': (["b7.0001", "b7.0002", "b9.0034"], 2),
+
+        'germ line': (["b7.0006"], 3),
+
+        'Mesoderm 1 Notochord': (["a7.0003", 'a7.0007'], 4),
+        'Mesoderm 2 Notochord': (["b8.0006"], 5),
+        'Mesoderm Trunk Lateral Cell': (['a7.0006'], 6),
+        'Mesoderm Trunk ventral Cell': (['b7.0005'], 7),
+        'Mesoderm First Muscle': (['b7.0004', 'b7.0008'], 8),
+        'Mesoderm Second Muscle': (['a9.0031', 'b9.0033'], 9),
+        'Mesoderm Mesenchyme': (['b7.0007', 'b8.0005'], 10),
+
+        'Posterior ventral Neural Plate': (["a7.0004"], 11),
+        'Anterior + Dorsal Neural Plate': (['a7.0009', 'a7.0010', 'b8.0019'], 12),
+        'Lateral Neural Plate': (['a7.0013', 'a8.0015', 'a9.0032'], 13),
+
+        'Trunk Epidermis': (['a7.0011', 'a7.0012', 'a7.0014', 'a7.0015', 'a7.0016'], 14),
+        'Midline Tail Epidermis': (['b8.0020', 'b8.0018', 'b9.0041', 'b8.0027', 'b9.0056', 'b9.0062', 'b9.0064'], 15),
+        'Mediolateral Tail Epidermis': (
+        ['b8.0024', 'b9.0045', 'b9.0042', 'b9.0043', 'b9.0049', 'b9.0055', 'b9.0061', 'b9.0063'], 16),
+        'Lateral Tail Epidermis': (['b9.0044', 'b8.0026', 'b9.0050', 'b9.0046', 'b8.0029', 'b8.0030'], 17)
+    }
+
+    cell_fate3 = {
+        'Head Endoderm': (["a6.0001", "a7.0001", "a7.0002", "a7.0005", "b7.0001", "b8.0003"], 1),
+        '1st Endodermal Lineage': (["b8.0004"], 2),
+        '2nd Endodermal Lineage': (["b9.0034"], 3),
+
+        '1st Lineage, Notochord': (["a7.0003", 'a7.0007'], 4),
+        '2nd Lineage, Notochord': (["b8.0006"], 5),
+        'Trunk Lateral Cell': (['a7.0006'], 6),
+        'Trunk Ventral Cell': (["b7.0005"], 7),
+        'Mesenchyme': (['b7.0007', 'b8.0005'], 8),
+        '1st Lineage, Tail Muscle': (['b7.0004', 'b7.0008'], 9),
+        '2nd Lineage, Tail Muscle': (['a9.0031', 'b9.0033'], 10),
+
+        'Anterior Dorsal Neural Plate': (['a7.0013'], 11),
+        'Anterior Ventral Neural Plate': (["a6.0005", "a7.0009", "a7.0010"], 12),
+        'Posterior Dorsal Neural Plate': (['b8.0019'], 13),
+        'Posterior Lateral Neural Plate': (['a8.0015', 'a9.0032'], 14),
+        'Posterior Ventral Neural Plate': (['a7.0004'], 15),
+
+        'Head Epidermis': (['a6.0006', 'a6.0008', 'a7.0014', 'a7.0015', 'a7.0016', 'a7.0011', 'a7.0012'], 16),
+        'Tail Epidermis': (
+        ['b7.0011', 'b7.0012', 'b7.0013', 'b7.0014', 'b7.0015', 'b7.0016' 'b9.0044', 'b8.0026', 'b9.0050', 'b9.0046',
+         'b7.0015', 'b8.0029', 'b8.0030', 'b8.0024', 'b9.0045', 'b9.0042', 'b9.0043', 'b9.0049', 'b9.0055', 'b9.0061',
+         'b9.0063', 'b8.0020', 'b8.0018', 'b9.0041', 'b8.0027', 'b9.0056', 'b9.0062', 'b9.0064'], 17),
+
+        'Germ Line': (["b7.0006"], 18)
+    }
+
+    # new fate (fate4) for visualisation MorphoNet and Tulip tree
+
+    cell_fate4 = {
+        'Anterior Head Endoderm': (
+        ["a6.0001", "a7.0001", "a7.0002", "a7.0005", "a8.0001", "a8.0002", "a8.0003", "a8.0004", "a8.0009", "a8.0010"],
+        1),
+        'Posterior Head Endoderm': (["b7.0001", "b8.0003", "b8.0001", "b8.0002"], 2),
+        '1st Endodermal Lineage': (["b8.0004"], 3),
+        '2nd Endodermal Lineage': (["b9.0034"], 4),
+
+        '1st Lineage, Notochord': (["a7.0003", 'a7.0007', "a8.0005", 'a8.0006', "a8.0013", 'a8.0014'], 5),
+        '2nd Lineage, Notochord': (["b8.0006"], 6),
+        'Trunk Lateral Cell': (['a7.0006', 'a8.0011', 'a8.0012'], 7),
+        'Trunk Ventral Cell': (["b7.0005", "b8.0009", "b8.0010"], 8),
+        'Mesenchyme': (['b7.0007', 'b8.0005', 'b8.0013', 'b8.0014'], 9),
+        '1st Lineage, Tail Muscle': (['b7.0004', 'b7.0008', 'b8.0007', 'b8.0008', 'b8.0015', 'b8.0016'], 10),
+        '2nd Lineage, Tail Muscle': (['a9.0031', 'b9.0033'], 11),
+
+        'Anterior Dorsal Neural Plate': (['a7.0013', 'a8.0025', 'a8.0026'], 12),
+        'Anterior Ventral Neural Plate': (["a6.0005", "a7.0009", "a7.0010"], 13),
+        'Posterior Dorsal Neural Plate': (['b8.0019'], 14),
+        'Posterior Lateral Neural Plate': (['a8.0015', 'a9.0032'], 15),
+        'Posterior Ventral Neural Plate': (
+        ['a7.0004', 'a8.0007', 'a8.0008', 'a9.0013', 'a9.0014', 'a9.0015', 'a9.0016', 'a10.0025', 'a10.0026',
+         'a10.0027', 'a10.0028', 'a10.0029', 'a10.0030', 'a10.0031', 'a10.0032'], 16),
+
+        'Head Epidermis': (
+        ['a6.0006', 'a6.0008', 'a7.0014', 'a7.0015', 'a7.0016', 'a7.0011', 'a7.0012', 'a8.0027', 'a8.0028', 'a8.0029',
+         'a8.0030', 'a8.0031', 'a8.0032', 'a8.0021', 'a8.0022', 'a8.0023', 'a8.0024', 'a10.0081', 'a10.0082'], 17),
+        'Lateral Tail Epidermis': (['b9.0044', 'b8.0026', 'b9.0050', 'b9.0047', 'b7.0015', 'b8.0029', 'b8.0030'], 18),
+        'Medio-Lateral Tail Epidermis': (
+        ['b8.0023', 'b9.0048', 'b9.0042', 'b9.0043', 'b9.0049', 'b9.0055', 'b9.0061', 'b9.0063', 'b10.0097',
+         'b10.0098'], 19),
+        'Midline Tail Epidermis': (
+        ['b8.0020', 'b8.0018', 'b9.0041', 'b8.0027', 'b9.0056', 'b9.0062', 'b9.0064', 'b10.0081', 'b10.0082'], 20),
+
+        'Germ Line': (["b7.0006"], 21)
+    }
+
+    cell_fate = {}
+    keyfate = None
+    if fate == 2:
+        cell_fate = cell_fate2
+        keyfate = 'cell_fate2'
+    elif fate == 3:
+        cell_fate = cell_fate3
+        keyfate = 'cell_fate3'
+    elif fate == 4:
+        cell_fate = cell_fate4
+        keyfate = 'cell_fate4'
+    else:
+        monitoring.to_log_and_console(proc + ": fate index '" + str(fate) + "' not handled")
+        return
+
+    # clean properties from previous fates
+    for f in ['cell_fate', 'cell_fate2', 'cell_fat3', 'cell_fate4']:
+        if f in d:
+            del d[f]
+
+    #
+    # give fate to cell that have a name
+    #
+    d[keyfate] = {}
+    for c in d['cell_name']:
+        fate = _find_fate(cell_fate, d['cell_name'][c])
+        if fate is not None:
+            d[keyfate][c] = fate
+
+    #
+    # forward propagation
+    #
+    reverse_lineage = {v: k for k, values in d['cell_lineage'].iteritems() for v in values}
+    cells = list(set(d['cell_lineage'].keys()).union(set([v for values in d['cell_lineage'].values() for v in values])))
+    cells = sorted(cells)
+    div = 10 ** time_digits_for_cell_id
+
+    missing_fate = {}
+    for c in cells:
+        t = int(c) // div
+        #
+        # get cells and cell names at each time point
+        #
+        if c not in d[keyfate]:
+            if t not in missing_fate:
+                missing_fate[t] = [c]
+            else:
+                missing_fate[t].append(c)
+
+    timepoints = sorted(missing_fate.keys())
+
+    for t in timepoints:
+        for c in missing_fate[t]:
+            if c in d[keyfate]:
+                continue
+            if c not in reverse_lineage:
+                continue
+            mother = reverse_lineage[c]
+            if mother not in d[keyfate]:
+                continue
+            d[keyfate][c] = d[keyfate][mother]
+
     return
 
 

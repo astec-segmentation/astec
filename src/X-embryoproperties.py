@@ -76,6 +76,11 @@ def _set_options(my_parser):
                            action='store', dest='diagnosis_minimal_volume',
                            help='displays all cells with smaller volume')
 
+    my_parser.add_argument('-fate', '--compute-fate',
+                           action='store_const', dest='compute_fate',
+                           default=False, const=True,
+                           help="delete previous fates ('fate', 'fate2', 'fate3' and 'fate4') and recompute 'fate4'")
+
     my_parser.add_argument('--diagnosis-items',
                            action='store', dest='diagnosis_items',
                            help='minimal number of items to be displayed')
@@ -328,6 +333,12 @@ if __name__ == '__main__':
                 print "error: empty dictionary to be compared with"
             else:
                 properties.comparison(inputdict, comparedict, args.outputFeatures, 'input entry', 'compared entry')
+
+        #
+        # compute fate from name
+        #
+        if args.compute_fate is True:
+            properties.compute_fate(inputdict, time_digits_for_cell_id=experiment.get_time_digits_for_cell_id())
 
         #
         # select features if required

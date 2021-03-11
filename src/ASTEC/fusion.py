@@ -107,6 +107,8 @@ class FusionParameters(common.PrefixedParameter):
         doc += "\t     large z are fuzzy. It is useful for direction-dependent weighting\n"
         doc += "\t     schemes\n"
         doc += "\t - 'inverse': the other way around\n"
+        doc += "\t Changing 'direct' to 'inverse' (or the other way) implies to change\n"
+        doc += "\t 'acquisition_orientation' as well\n"
         doc += "\t using 'acquisition_leftcamera_z_stacking' will set both\n"
         doc += "\t 'acquisition_stack0_leftcamera_z_stacking' and \n"
         doc += "\t 'acquisition_stack0_leftcamera_z_stacking'\n"
