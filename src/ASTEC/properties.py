@@ -420,6 +420,17 @@ def _set_xml_element_text(element, value):
             # element.text = str(value)
             element.text = repr(value)
 
+        elif isinstance(value[0], str) :
+            text = "["
+            for i in range(len(value)):
+                text += "'" + value[i] + "'"
+                if i < len(value) - 1:
+                    text += ", "
+                    if i > 0 and i % 5 == 0:
+                        text += "\n  "
+            text += "]"
+            element.text = text
+            del text
         #
         # 'principal-vector' case
         #  liste de numpy.ndarray de numpy.float64
@@ -1527,6 +1538,23 @@ def _diagnosis_lineage(direct_lineage, description, time_digits_for_cell_id=4):
     early_leaves = [leave for leave in leaves if (leave/10**time_digits_for_cell_id) < last_time]
 
     #
+    # count cells per time
+    #
+    div = 10 ** time_digits_for_cell_id
+    cells_per_time = {}
+    for c in direct_nodes:
+        t = int(c) // div
+        if t not in cells_per_time:
+            cells_per_time[t] = [c]
+        else:
+            cells_per_time[t].append(c)
+
+    monitoring.to_log_and_console("    at time " + str(first_time) + ", #cells = " +
+                                  str(len(cells_per_time[first_time])), 1)
+    monitoring.to_log_and_console("    at time " + str(last_time) + ", #cells = " +
+                                  str(len(cells_per_time[last_time])), 1)
+
+    #
     # build a reverse lineage
     #
     reverse_lineage = {}
@@ -1747,6 +1775,11 @@ def _diagnosis_name(name, lineage, description, time_digits_for_cell_id=4, verbo
                 missing_name[t] = [n]
             else:
                 missing_name[t].append(n)
+            mother = reverse_lineage[c]
+            if len(lineage[mother]) == 1 and mother in name:
+                msg = ": weird, cell " + str(c) + " has no name"
+                msg += ", but its mother cell " + str(mother) + " has a name " + str(name[mother])
+                monitoring.to_log_and_console(str(proc) + msg)
         elif c in reverse_lineage:
             mother = reverse_lineage[c]
             if mother not in name:
@@ -2138,8 +2171,8 @@ def _find_fate(cell_fate, name):
     return None
 
 
-def compute_fate(d, fate=4, time_digits_for_cell_id=4):
-    proc = "compute_fate"
+def set_fate_from_names(d, fate=4, time_digits_for_cell_id=4):
+    proc = "set_fate_from_names"
 
     cell_fate2 = {
         'Anterior Endoderm': (["a7.0001", "a7.0002", "a7.0005"], 1),
@@ -2243,13 +2276,13 @@ def compute_fate(d, fate=4, time_digits_for_cell_id=4):
         keyfate = 'cell_fate3'
     elif fate == 4:
         cell_fate = cell_fate4
-        keyfate = 'cell_fate4'
+        keyfate = 'cell_fate'
     else:
         monitoring.to_log_and_console(proc + ": fate index '" + str(fate) + "' not handled")
         return
 
     # clean properties from previous fates
-    for f in ['cell_fate', 'cell_fate2', 'cell_fat3', 'cell_fate4']:
+    for f in ['cell_fate', 'cell_fate2', 'cell_fat3']:
         if f in d:
             del d[f]
 
@@ -2295,7 +2328,168 @@ def compute_fate(d, fate=4, time_digits_for_cell_id=4):
                 continue
             d[keyfate][c] = d[keyfate][mother]
 
-    return
+    #
+    # backward propagation
+    #
+    cells = sorted(cells, reverse=True)
+    for c in cells:
+        if c not in d[keyfate]:
+            continue
+        if c not in reverse_lineage:
+            continue
+        mother = reverse_lineage[c]
+        if len(d['cell_lineage'][mother]) == 1:
+            if mother in d[keyfate]:
+                if d[keyfate][mother] != d[keyfate][c]:
+                    msg = ": weird, cell " + str(mother) + " has fate " + str(d[keyfate][mother])
+                    msg += ", but should have " + str(d[keyfate][c])
+                    msg += " as its single daughter"
+                    monitoring.to_log_and_console(str(proc) + msg)
+            else:
+                d[keyfate][mother] = d[keyfate][c]
+        elif len(d['cell_lineage'][mother]) == 2:
+            if mother in d[keyfate]:
+                if isinstance(d[keyfate][mother], str) and  isinstance(d[keyfate][c], str):
+                    if d[keyfate][mother] != d[keyfate][c]:
+                        f = d[keyfate][mother]
+                        del d[keyfate][mother]
+                        d[keyfate][mother] = [f, d[keyfate][c]]
+                    continue
+                elif isinstance(d[keyfate][mother], list) and  isinstance(d[keyfate][c], str):
+                    if d[keyfate][c] not in d[keyfate][mother]:
+                        d[keyfate][mother].append(d[keyfate][c])
+                    continue
+                elif isinstance(d[keyfate][mother], str) and  isinstance(d[keyfate][c], list):
+                    if d[keyfate][mother] not in d[keyfate][c] or len(d[keyfate][c]) > 1:
+                        f = d[keyfate][mother]
+                        del d[keyfate][mother]
+                        d[keyfate][mother] = [f] + d[keyfate][c]
+                    continue
+                elif isinstance(d[keyfate][mother], list) and  isinstance(d[keyfate][c], list):
+                    d[keyfate][mother] = list(set(d[keyfate][mother]).union(set(d[keyfate][c])))
+                    continue
+                else:
+                    if not isinstance(d[keyfate][mother], str) and isinstance(d[keyfate][mother], list):
+                        msg = ":type '"+ str(type(d[keyfate][mother])) + "' of d['" + str(keyfate)
+                        msg += "'][" + str(mother) + "]" + "not handled yet"
+                        monitoring.to_log_and_console(str(proc) + msg)
+                    if not isinstance(d[keyfate][c], str) and isinstance(d[keyfate][c], list):
+                        msg = ":type '" + str(type(d[keyfate][c])) + "' of d['" + str(keyfate) + "'][" + str(c) + "]"
+                        msg += "not handled yet"
+                        monitoring.to_log_and_console(str(proc) + msg)
+            else:
+                d[keyfate][mother] = d[keyfate][c]
+        else:
+            msg = ": weird, cell " + str(mother) + " has " + str(len(d['cell_lineage'][mother])) + " daughter(s)"
+            monitoring.to_log_and_console(str(proc) + msg)
+
+    return d
+
+
+def _set_color_from_fate(d, colormap_version=2020):
+    proc = "_set_color_from_fate"
+
+    color_fate_2020 = {}
+    color_fate_2020["1st Lineage, Notochord"] = 2
+    color_fate_2020["Posterior Ventral Neural Plate"] = 19
+    color_fate_2020["Anterior Ventral Neural Plate"] = 9
+    color_fate_2020["Anterior Head Endoderm"] = 8
+    color_fate_2020["Anterior Endoderm"] = 8
+    color_fate_2020["Posterior Head Endoderm"] = 17
+    color_fate_2020["Posterior Endoderm"] = 17
+    color_fate_2020["Trunk Lateral Cell"] = 20
+    color_fate_2020["Mesenchyme"] = 14
+    color_fate_2020["1st Lineage, Tail Muscle"] = 3
+    color_fate_2020["Trunk Ventral Cell"] = 21
+    color_fate_2020["Germ Line"] = 10
+    color_fate_2020["Lateral Tail Epidermis"] = 12
+    color_fate_2020["Head Epidermis"] = 11
+    color_fate_2020["Trunk Epidermis"] = 11
+    color_fate_2020["Anterior Dorsal Neural Plate"] = 7
+    color_fate_2020["Posterior Lateral Neural Plate"] = 18
+    color_fate_2020["2nd Lineage, Notochord"] = 5
+    color_fate_2020["Medio-Lateral Tail Epidermis"] = 13
+    color_fate_2020["Midline Tail Epidermis"] = 15
+    color_fate_2020["Posterior Dorsal Neural Plate"] = 16
+    color_fate_2020["1st Endodermal Lineage"] = 1
+    color_fate_2020["2nd Lineage, Tail Muscle"] = 6
+    color_fate_2020["2nd Endodermal Lineage"] = 4
+
+    color_fate_2009 = {}
+    color_fate_2009["1st Lineage, Notochord"] = 78
+    color_fate_2009["Posterior Ventral Neural Plate"] = 58
+    color_fate_2009["Anterior Ventral Neural Plate"] = 123
+    color_fate_2009["Anterior Head Endoderm"] = 1
+    color_fate_2009["Anterior Endoderm"] = 1
+    color_fate_2009["Posterior Head Endoderm"] = 27
+    color_fate_2009["Posterior Endoderm"] = 27
+    color_fate_2009["Trunk Lateral Cell"] = 62
+    color_fate_2009["Mesenchyme"] = 63
+    color_fate_2009["1st Lineage, Tail Muscle"] = 135
+    color_fate_2009["Trunk Ventral Cell"] = 72
+    color_fate_2009["Germ Line"] = 99
+    color_fate_2009["Lateral Tail Epidermis"] = 61
+    color_fate_2009["Head Epidermis"] = 76
+    color_fate_2020["Trunk Epidermis"] = 76
+    color_fate_2009["Anterior Dorsal Neural Plate"] = 81
+    color_fate_2009["Posterior Lateral Neural Plate"] = 75
+    color_fate_2009["2nd Lineage, Notochord"] = 199
+    color_fate_2009["Medio-Lateral Tail Epidermis"] = 41
+    color_fate_2009["Midline Tail Epidermis"] = 86
+    color_fate_2009["Posterior Dorsal Neural Plate"] = 241
+    color_fate_2009["1st Endodermal Lineage"] = 40
+    color_fate_2009["2nd Lineage, Tail Muscle"] = 110
+    color_fate_2009["2nd Endodermal Lineage"] = 44
+
+    colormap = {}
+    keycolormap = None
+    if colormap_version == 2020:
+        colormap = color_fate_2020
+        keycolormap = 'selection_tissuefate_guignard_2020'
+    elif colormap_version == 2009:
+        colormap = color_fate_2009
+        keycolormap = 'selection_tissuefate_lemaire_2009'
+    else:
+        monitoring.to_log_and_console(proc + ": colormap version '" + str(colormap_version) + "' not handled")
+        return
+
+    if keycolormap in d:
+        del d[keycolormap]
+    d[keycolormap] = {}
+
+    for c in d['cell_fate']:
+        if isinstance(d['cell_fate'][c], str):
+            if d['cell_fate'][c] not in colormap:
+                monitoring.to_log_and_console(proc + ": fate '" + str(d['cell_fate'][c]) + "' not handled in color map")
+                continue
+            d[keycolormap][c] = [colormap[d['cell_fate'][c]]]
+        elif isinstance(d['cell_fate'][c], list):
+            for f in d['cell_fate'][c]:
+                if not isinstance(f, str):
+                    msg = ":type '" + str(f) + "' found in d['cell_fate'][" + str(c) + "]"
+                    msg += "not handled yet"
+                    monitoring.to_log_and_console(str(proc) + msg)
+                    continue
+                if f not in colormap:
+                    monitoring.to_log_and_console(
+                        proc + ": fate '" + str(f) + "' not handled in color map")
+                    continue
+                if c not in d[keycolormap]:
+                    d[keycolormap][c] = [colormap[f]]
+                else:
+                    d[keycolormap][c].append(colormap[f])
+        else:
+            msg = ":type '" + str(d['cell_fate'][c]) + "' of d['cell_fate'][" + str(c) + "]"
+            msg += "not handled yet"
+            monitoring.to_log_and_console(str(proc) + msg)
+
+    return d
+
+
+def set_color_from_fate(d):
+    d = _set_color_from_fate(d, colormap_version=2020)
+    d = _set_color_from_fate(d, colormap_version=2009)
+    return d
 
 
 ########################################################################################

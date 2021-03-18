@@ -6,6 +6,7 @@ import collections
 import numpy as np
 import random
 import math
+import cPickle as pkl
 
 import common
 import properties as properties
@@ -46,6 +47,9 @@ class NamingParameters(common.PrefixedParameter):
         self.inputFiles = []
         self.outputFile = None
         self.referenceFiles = []
+        #
+        # for test:
+        # names will be deleted, and tried to be rebuilt
         self.testFile = None
 
     ############################################################
@@ -603,6 +607,8 @@ def _build_test_set(prop, time_digits_for_cell_id=4, ncells=64):
     else:
         draw = random.choice(indices)
 
+    monitoring.to_log_and_console(str(proc) + ": rename from time point " + str(draw))
+
     cells = returned_prop['cell_name'].keys()
     for c in cells:
         if int(c) // div != draw:
@@ -618,9 +624,10 @@ def _test_naming(prop, reference_prop, discrepancies):
     monitoring.to_log_and_console("_test_naming")
     monitoring.to_log_and_console("------------")
 
-
+    #
+    # get the cell names with error
+    #
     name_errors = {}
-    name_missing = {}
     key_list = sorted(prop['cell_name'].keys())
     for k in key_list:
         if k not in reference_prop['cell_name']:
@@ -636,6 +643,23 @@ def _test_naming(prop, reference_prop, discrepancies):
             else:
                 name_errors[prop['cell_name'][k]] += 1
 
+    #
+    # if an error occur, a bad choice has been made at the mother division (first_errors)
+    # or at some ancestor (second_errors)
+    #
+    first_errors = {}
+    second_errors = {}
+    first_error_mothers = []
+    names = name_errors.keys()
+    for n in names:
+        if _get_mother_name(n) in names or _get_mother_name(n) in first_error_mothers:
+            second_errors[n] = name_errors[n]
+        else:
+            first_errors[n] = name_errors[n]
+            if _get_mother_name(n) not in first_error_mothers:
+                first_error_mothers.append(_get_mother_name(n))
+
+    name_missing = {}
     reference_name = {}
     key_list = sorted(reference_prop['cell_name'].keys())
     for k in key_list:
@@ -654,25 +678,28 @@ def _test_naming(prop, reference_prop, discrepancies):
     error_count = 0
     for k in name_errors:
         error_count += name_errors[k]
+    first_error_count = 0
+    for k in first_errors:
+        first_error_count += first_errors[k]
+    second_error_count = 0
+    for k in second_errors:
+        second_error_count += second_errors[k]
     missing_count = 0
     for k in name_missing:
         missing_count += name_missing[k]
 
-    msg = "ground-truth cells = " + str(len(reference_prop['cell_name']))  + " --- "
+    msg = "ground-truth cells = " + str(len(reference_prop['cell_name'])) + " --- "
     msg += "ground-truth names = " + str(len(reference_name)) + " --- "
     msg += "tested cells = " + str(len(prop['cell_name'])) + " --- "
     msg += "retrieved names = " + str(len(reference_name) - len(name_missing)) + "\n"
     msg += "\t missing cell names = " + str(missing_count) + " for " + str(len(name_missing)) + " names --- "
-    msg += "errors on cell name = " + str(error_count) + " for " + str(len(name_errors)) + " names"
+    msg += "total errors on cell name = " + str(error_count) + " for " + str(len(name_errors)) + " names \n"
+    msg += "\t first errors in lineage = " + str(first_error_count) + " for " + str(len(first_errors)) + " names --- "
+    msg += "induced errors = " + str(second_error_count) + " for " + str(len(second_errors)) + " names \n"
+    msg += "\t division of first errors = " + str(sorted(first_error_mothers))
     monitoring.to_log_and_console("summary" + ": " + msg)
 
-
-########################################################################################
-#
-#
-#
-########################################################################################
-
+    return
 
 
 ########################################################################################
@@ -710,6 +737,7 @@ def _print_neighborhoods(neighborhood0, neighborhood1, title=None):
             msg += "}"
     monitoring.to_log_and_console(msg)
 
+
 ########################################################################################
 #
 #
@@ -739,10 +767,15 @@ def _add_neighborhoods(previous_neighborhoods, prop, reference_name, time_digits
         return
 
     #
+    # remove empty names
+    # leading or trailing spaces
+    #
     cells = prop['cell_name'].keys()
     for c in cells:
         if prop['cell_name'][c] == '':
             del prop['cell_name'][c]
+            continue
+        prop['cell_name'][c] = prop['cell_name'][c].strip()
 
     #
     lineage = prop['cell_lineage']
@@ -766,8 +799,8 @@ def _add_neighborhoods(previous_neighborhoods, prop, reference_name, time_digits
         #
         if d not in name:
             missing_name += 1
-            monitoring.to_log_and_console(str(proc) + ": cell #" + str(d)
-                                          + " was not found in 'cell_name' dictionary. Skip it")
+            monitoring.to_log_and_console(str(proc) + ": daughter cell #" + str(d)
+                                          + " was not found in 'cell_name' dictionary. Skip it", 4)
             continue
 
         if d not in contact:
@@ -797,8 +830,9 @@ def _add_neighborhoods(previous_neighborhoods, prop, reference_name, time_digits
             else:
                 neighbor_is_complete = False
                 missing_name += 1
-                monitoring.to_log_and_console(str(proc) + ": cell #" + str(c)
-                                              + " was not found in 'cell_name' dictionary. Skip it")
+                msg = ": cell #" + str(c) + " was not found in 'cell_name' dictionary.\n"
+                msg += "\t Neighborhood of " + str(prop['cell_name'][d]) + " is not complete. Skip it"
+                monitoring.to_log_and_console(str(proc) + msg)
                 continue
         if neighbor_is_complete:
             if reference_name in previous_neighborhoods[prop['cell_name'][d]]:
@@ -912,12 +946,31 @@ def _check_neighborhood_consistency(neighborhoods):
     monitoring.to_log_and_console(str(proc))
     monitoring.to_log_and_console("-------------------------------")
 
+    #
+    # list of daughter cells
+    #
     cell_names = sorted(list(neighborhoods.keys()))
+
+    #
+    # get the list of references per division
+    #
+    references = {}
+    for cell_name in cell_names:
+        mother_name = _get_mother_name(cell_name)
+        if mother_name not in references:
+            references[mother_name] = set(neighborhoods[cell_name].keys())
+        else:
+            references[mother_name].union(set(neighborhoods[cell_name].keys()))
+
+    #
+    # get discrepancies
+    #
     discrepancy = {}
     tested_couples = {}
-    while len(cell_names) > 0:
+    for cell_name in cell_names:
         #
-        cell_name = cell_names[0]
+        # get cell name and sister name
+        #
         sister_name = _get_sister_name(cell_name)
         if sister_name not in neighborhoods:
             msg = "weird, cell " + str(cell_name) + " is in the reference neighborhoods, while its sister "
@@ -926,22 +979,26 @@ def _check_neighborhood_consistency(neighborhoods):
             cell_names.remove(cell_name)
             continue
         #
+        # only one neighborhood, nothing to test
+        #
         if len(neighborhoods[cell_name]) == 1:
             cell_names.remove(cell_name)
             cell_names.remove(sister_name)
             continue
         #
-        for reference in neighborhoods[cell_name]:
-            for other in neighborhoods[cell_name]:
-                if other == reference:
+        # get two reference embryos
+        #
+        for ref1 in neighborhoods[cell_name]:
+            for ref2 in neighborhoods[cell_name]:
+                if ref2 <= ref1:
                     continue
-                if other not in neighborhoods[sister_name]:
-                    msg = "weird, reference " + str(other) + " is in the neighborhoods of cell "
+                if ref2 not in neighborhoods[sister_name]:
+                    msg = "weird, reference " + str(ref2) + " is in the neighborhoods of cell "
                     msg += str(cell_name) + " but not of its sister " + str(sister_name)
                     monitoring.to_log_and_console(str(proc) + ": " + msg)
                     continue
-                same_choice = _get_score(neighborhoods[cell_name][reference], neighborhoods[cell_name][other])
-                sister_choice = _get_score(neighborhoods[cell_name][reference], neighborhoods[sister_name][other])
+                same_choice = _get_score(neighborhoods[cell_name][ref1], neighborhoods[cell_name][ref2])
+                sister_choice = _get_score(neighborhoods[cell_name][ref1], neighborhoods[sister_name][ref2])
                 mother_name = _get_mother_name(cell_name)
                 if mother_name not in tested_couples:
                     tested_couples[mother_name] = 1
@@ -951,29 +1008,64 @@ def _check_neighborhood_consistency(neighborhoods):
                     continue
                 if mother_name not in discrepancy:
                     discrepancy[mother_name] = []
-                if [other, reference] not in discrepancy[mother_name]:
-                    discrepancy[mother_name].append([reference, other])
-        cell_names.remove(cell_name)
-        cell_names.remove(sister_name)
+                discrepancy[mother_name].append([ref1, ref2])
+
     #
+    # if some divisions have some discrepancies, the following ones in the lineage
+    # are likely to exhibit discrepancies also
     #
-    #
+    second_discrepancy = {}
+    first_discrepancy = {}
     if len(discrepancy) > 0:
+        #
         mother_names = sorted(discrepancy.keys())
-        for mother_name in mother_names:
-            msg = "division of cell " + str(mother_name) + " into cells "
-            msg += str(_get_daughter_names(mother_name)) + " has " + str(len(discrepancy[mother_name]))
-            if len(discrepancy[mother_name]) > 1:
-                msg += " discrepancies"
+        for n in mother_names:
+            if _get_mother_name(n) in mother_names or _get_mother_name(n) in first_discrepancy:
+                second_discrepancy[n] = discrepancy[n]
             else:
-                msg += " discrepancy"
-            msg += " over "
-            daughters = _get_daughter_names(mother_name)
-            msg += str(min(len(neighborhoods[daughters[0]]), len(neighborhoods[_get_sister_name(daughters[1])])))
-            msg += " neighborhoods "
-            msg += "\n"
-            msg += "\t " + str(discrepancy[mother_name])
+                first_discrepancy[n] = discrepancy[n]
+        #
+        mother_names = sorted(first_discrepancy.keys())
+        if len(mother_names) > 0:
+            msg = "first occurring discrepancies = " + str(len(first_discrepancy))
             monitoring.to_log_and_console(msg)
+            for mother_name in mother_names:
+                msg = " - " + str(mother_name) + " cell division into "
+                msg += str(_get_daughter_names(mother_name)) + " has " + str(len(discrepancy[mother_name]))
+                if len(discrepancy[mother_name]) > 1:
+                    msg += " discrepancies"
+                else:
+                    msg += " discrepancy"
+                percent = 100.0 * float(len(discrepancy[mother_name])) / float(tested_couples[mother_name])
+                msg += " (" + "{:2.2f}".format(percent) + ") "
+                msg += " over " + str(tested_couples[mother_name]) + " tested configurations "
+                monitoring.to_log_and_console(msg)
+                msg = "\t over " + str(len(references[mother_name]))
+                msg += " references: " + str(references[mother_name])
+                monitoring.to_log_and_console(msg)
+                msg = "\t " + str(discrepancy[mother_name])
+                monitoring.to_log_and_console(msg, 4)
+        #
+        mother_names = sorted(second_discrepancy.keys())
+        if len(mother_names) > 0:
+            msg = "induced discrepancies = " + str(len(second_discrepancy))
+            monitoring.to_log_and_console(msg)
+            for mother_name in mother_names:
+                msg = " - " + str(mother_name) + " cell division into "
+                msg += str(_get_daughter_names(mother_name)) + " has " + str(len(discrepancy[mother_name]))
+                if len(discrepancy[mother_name]) > 1:
+                    msg += " discrepancies"
+                else:
+                    msg += " discrepancy"
+                percent = 100.0 * float(len(discrepancy[mother_name])) / float(tested_couples[mother_name])
+                msg += " (" + "{:2.2f}".format(percent) + ") "
+                msg += " over " + str(tested_couples[mother_name]) + " tested configurations "
+                monitoring.to_log_and_console(msg)
+                msg = "\t over " + str(len(references[mother_name]))
+                msg += " references: " + str(references[mother_name])
+                monitoring.to_log_and_console(msg)
+                msg = "\t " + str(discrepancy[mother_name])
+                monitoring.to_log_and_console(msg, 4)
 
     msg = "tested divisions = " + str(len(tested_couples))
     monitoring.to_log_and_console(str(proc) + ": " + msg)
@@ -982,7 +1074,7 @@ def _check_neighborhood_consistency(neighborhoods):
 
     monitoring.to_log_and_console("-------------------------------")
     monitoring.to_log_and_console("")
-    return discrepancy
+    return
 
 
 ########################################################################################
@@ -994,24 +1086,27 @@ def _check_neighborhood_consistency(neighborhoods):
 def _build_scores(mother, daughters, ancestor_name, prop, neighborhoods, time_digits_for_cell_id=4):
     proc = "_build_scores"
 
+    #
+    # are daughter names indexed?
+    #
     daughter_names = _get_daughter_names(prop['cell_name'][mother])
+    for name in daughter_names:
+        #
+        # no reference for this name
+        #
+        if name not in neighborhoods:
+            msg = ": no reference neighborhoods for name " + str(name)
+            msg += ". Can not name cells " + str(daughters)
+            msg += " from mother cell " + str(mother)
+            msg += " named " + str(prop['cell_name'][mother])
+            monitoring.to_log_and_console(str(proc) + msg, 4)
+            return None, None, None
+
     div = 10 ** time_digits_for_cell_id
 
     score = {}
     ancestor_count = 0
     ancestor_surface = 0
-
-    if mother == 480046:
-        print("mother_name=" + str(prop['cell_name'][mother]))
-        for name in daughter_names:
-            print("\n")
-            print("name=" + str(name))
-            print("")
-            for reference_name in neighborhoods[name]:
-                print("  reference_name="+str(reference_name))
-                title="    neighborhoods["+str(name)+"]["+str(reference_name)+"]"
-                _print_neighborhood(neighborhoods[name][reference_name], title=title)
-        print("\n")
 
     for d in daughters:
         score[d] = {}
@@ -1047,14 +1142,6 @@ def _build_scores(mother, daughters, ancestor_name, prop, neighborhoods, time_di
         #
         for name in daughter_names:
             score[d][name] = {}
-            #
-            # no reference for this name
-            #
-            if name not in neighborhoods:
-                msg = ": no reference neighborhoods for name " + str(name)
-                msg += ". Can not name cells " + str(daughters)
-                monitoring.to_log_and_console(str(proc) + msg)
-                return None, None, None
             for reference_name in neighborhoods[name]:
                 score[d][name][reference_name] = _get_score(contact, neighborhoods[name][reference_name])
     return score, ancestor_count, ancestor_surface
@@ -1158,9 +1245,19 @@ def _propagate_naming(prop, neighborhoods, time_digits_for_cell_id=4):
     lineage = prop['cell_lineage']
 
     #
+    # remove empty names
+    # leading or trailing spaces
+    #
+    cells = prop['cell_name'].keys()
+    for c in cells:
+        if prop['cell_name'][c] == '':
+            del prop['cell_name'][c]
+            continue
+        prop['cell_name'][c] = prop['cell_name'][c].strip()
+
+    #
     # initialize 'cell_name_certainty'
     #
-
     prop['cell_name_certainty'] = {}
     for k in prop['cell_name']:
         prop['cell_name_certainty'][k] = 1.0
@@ -1303,17 +1400,13 @@ def _propagate_naming(prop, neighborhoods, time_digits_for_cell_id=4):
                 # the length of the array is the occurrence of [n in daughter_names(mother)] in the
                 # neighborhood dictionary
                 #
-                if mother == 480046:
-                    _instrumented_ = True
                 scores, a_count, a_surface = _build_scores(mother, daughters, ancestor_name, prop, neighborhoods,
                                                            time_digits_for_cell_id=time_digits_for_cell_id)
                 # print("scores = " + str(scores))
                 if scores is None:
                     continue
-                monitoring.to_log_and_console(str(proc) + ": processing mother = " + str(mother))
                 name, name_certainty = _analyse_scores(scores)
-                if mother == 480046:
-                    sys.exit(1)
+
                 for c in name:
                     prop['cell_name'][c] = name[c]
                     prop['cell_name_certainty'][c] = name_certainty[c]
@@ -1350,15 +1443,16 @@ def _propagate_naming(prop, neighborhoods, time_digits_for_cell_id=4):
                     if ancestor_count[min_count] > ancestor_count[mother]:
                         min_count = mother
 
+                chosen_mother = min_surface
 
-                name, name_certainty = _analyse_scores(scores[min_count])
+                name, name_certainty = _analyse_scores(scores[chosen_mother])
                 for c in name:
                     prop['cell_name'][c] = name[c]
                     prop['cell_name_certainty'][c] = name_certainty[c]
                     if c in ancestor_name:
                         del ancestor_name[c]
 
-                del division_to_be_named[min_count]
+                del division_to_be_named[chosen_mother]
 
     return prop
 
@@ -1405,6 +1499,7 @@ def naming_process(experiment, parameters):
                                                time_digits_for_cell_id=time_digits_for_cell_id)
             del prop
 
+    _check_neighborhood_consistency(neighborhoods)
     # for c in neighborhoods:
     #     print("- #" + str(len(neighborhoods[c])) + " : " + str(neighborhoods[c]))
 
@@ -1421,7 +1516,7 @@ def naming_process(experiment, parameters):
         if prop is None:
             monitoring.to_log_and_console(str(proc) + ": error when building test set")
             sys.exit(1)
-        discrepancies = _check_neighborhood_consistency(neighborhoods)
+        _check_neighborhood_consistency(neighborhoods)
     elif parameters.inputFiles is not None:
         prop = properties.read_dictionary(parameters.inputFiles, inputpropertiesdict={})
 
@@ -1439,11 +1534,13 @@ def naming_process(experiment, parameters):
     # naming propagation
     #
     prop = _propagate_naming(prop, neighborhoods)
+    prop = properties.set_fate_from_names(prop, time_digits_for_cell_id=time_digits_for_cell_id)
+    prop = properties.set_color_from_fate(prop)
     #
     #
     #
     if parameters.testFile is not None:
-        _test_naming(prop, reference_prop, discrepancies)
+        name_errors = _test_naming(prop, reference_prop, discrepancies)
 
     if isinstance(parameters.outputFile, str):
         properties.write_dictionary(parameters.outputFile, prop)

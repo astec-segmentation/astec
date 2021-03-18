@@ -338,7 +338,9 @@ if __name__ == '__main__':
         # compute fate from name
         #
         if args.compute_fate is True:
-            properties.compute_fate(inputdict, time_digits_for_cell_id=experiment.get_time_digits_for_cell_id())
+            time_digits_for_cell_id = experiment.get_time_digits_for_cell_id()
+            inputdict = properties.set_fate_from_names(inputdict, time_digits_for_cell_id=time_digits_for_cell_id)
+            inputdict = properties.set_color_from_fate(inputdict)
 
         #
         # select features if required
