@@ -539,7 +539,8 @@ def cell_binarization(parameters_for_parallelism):
     :return:
     """
 
-    label_of_interest, bbox, previous_deformed_segmentation, tmp_prefix_name, parameters = parameters_for_parallelism
+    label_of_interest, bbox, previous_deformed_segmentation, tmp_prefix_name, parameters, default_image_suffix = \
+        parameters_for_parallelism
     label_width = 5
 
     #
@@ -549,7 +550,7 @@ def cell_binarization(parameters_for_parallelism):
     cellid = str('{:0{width}d}'.format(label_of_interest, width=label_width))
     cell_prefix_name = tmp_prefix_name + "_cell" + cellid
 
-    cell_mask = cell_prefix_name + ".mask" + "." + parameters.default_image_suffix
+    cell_mask = cell_prefix_name + ".mask" + "." + default_image_suffix
 
     #
     # defines the dilated cell mask
@@ -581,10 +582,10 @@ def cell_binarization(parameters_for_parallelism):
     # threshold extrema
     #
 
-    full_ext = tmp_prefix_name + ".ext" "." + parameters.default_image_suffix
-    cell_ext = cell_prefix_name + ".ext" + "." + parameters.default_image_suffix
+    full_ext = tmp_prefix_name + ".ext" "." + default_image_suffix
+    cell_ext = cell_prefix_name + ".ext" + "." + default_image_suffix
     cell_hist = cell_prefix_name + ".hist" + ".txt"
-    cell_bin = cell_prefix_name + ".bin" + "." + parameters.default_image_suffix
+    cell_bin = cell_prefix_name + ".bin" + "." + default_image_suffix
 
     cpp_wrapping.crop_image(full_ext, cell_ext, bbox, monitoring=monitoring)
 
@@ -595,10 +596,10 @@ def cell_binarization(parameters_for_parallelism):
         cpp_wrapping.seuillage(path_input=cell_ext, path_output=cell_bin,
                                low_threshold=parameters.hard_threshold, monitoring=monitoring)
     else:
-        full_theta = tmp_prefix_name + ".theta" + "." + parameters.default_image_suffix
-        full_phi = tmp_prefix_name + ".phi" + "." + parameters.default_image_suffix
-        cell_theta = cell_prefix_name + ".theta" + "." + parameters.default_image_suffix
-        cell_phi = cell_prefix_name + ".phi" + "." + parameters.default_image_suffix
+        full_theta = tmp_prefix_name + ".theta" + "." + default_image_suffix
+        full_phi = tmp_prefix_name + ".phi" + "." + default_image_suffix
+        cell_theta = cell_prefix_name + ".theta" + "." + default_image_suffix
+        cell_phi = cell_prefix_name + ".phi" + "." + default_image_suffix
 
         cpp_wrapping.crop_image(full_theta, cell_theta, bbox, monitoring=monitoring)
         cpp_wrapping.crop_image(full_phi, cell_phi, bbox, monitoring=monitoring)
@@ -784,7 +785,8 @@ def cell_membrane_enhancement(path_input, previous_deformed_segmentation, path_o
         monitoring.to_log_and_console("       membrane binarization of cell '" + str(label_of_interest) + "'", 3)
 
         parameters_for_parallelism = (label_of_interest, bboxes[label_of_interest],
-                                      previous_deformed_segmentation, tmp_prefix_name, parameters)
+                                      previous_deformed_segmentation, tmp_prefix_name, parameters,
+                                      experiment.default_image_suffix)
         # print str(parameters_for_parallelism)
         mapping.append(parameters_for_parallelism)
 
