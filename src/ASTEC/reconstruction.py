@@ -580,13 +580,14 @@ def get_previous_deformed_segmentation(current_time, experiment, parameters, pre
 ########################################################################################
 
 
-def build_reconstructed_image(current_time, experiment, parameters, suffix=None, previous_time=None):
+def build_reconstructed_image(current_time, experiment, parameters, suffix=None, suffix_glace=None, previous_time=None):
     """
 
     :param current_time:
     :param experiment:
     :param parameters:
     :param suffix:
+    :param suffix_glace:
     :param previous_time:
     :return:
     """
@@ -875,21 +876,33 @@ def build_reconstructed_image(current_time, experiment, parameters, suffix=None,
         if parameters.intensity_enhancement.lower() == 'gace' or parameters.intensity_enhancement.lower() == 'glace':
             #
             # set the 'enhanced_image' name
+            # test whether there is a g(l)ace image
             #
+            enhanced_image = None
+            if suffix_glace is not None:
+                enhanced_name = common.add_suffix(str(input_image).split(os.path.sep)[-1], suffix_glace + "_enhanced")
+                enhanced_image = common.find_file(experiment.working_dir.get_tmp_directory(0), enhanced_name,
+                                                 file_type='image', callfrom=proc, local_monitoring=None, verbose=False)
+                if enhanced_image is not None:
+                    monitoring.to_log_and_console("       use cell enhancement image '"
+                                                  + str(enhanced_image).split(os.path.sep)[-1] + "'", 2)
             if (parameters.intensity_transformation is None or parameters.intensity_transformation.lower() == 'none') \
                     and parameters.outer_contour_enhancement is False:
                 #
                 # there is only the membrane enhancement
                 #
+                if enhanced_image is not None:
+                    return enhanced_image
                 experiment.working_dir.make_rec_directory()
                 enhanced_image = reconstructed_image
             else:
                 #
                 # there is an other operation
                 #
-                enhanced_image = common.add_suffix(input_image, local_suffix + "_enhanced",
-                                                   new_dirname=experiment.working_dir.get_tmp_directory(0),
-                                                   new_extension=experiment.default_image_suffix)
+                if enhanced_image is None:
+                    enhanced_image = common.add_suffix(input_image, local_suffix + "_enhanced",
+                                                       new_dirname=experiment.working_dir.get_tmp_directory(0),
+                                                       new_extension=experiment.default_image_suffix)
             enhanced_image_bytes = 1
             #
             # compute 'enhanced_image'

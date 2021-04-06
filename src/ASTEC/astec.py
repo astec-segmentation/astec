@@ -237,8 +237,11 @@ class AstecParameters(mars.WatershedParameters, MorphoSnakeParameters):
         mars.WatershedParameters.__init__(self, prefix=prefix)
 
         self.seed_reconstruction = reconstruction.ReconstructionParameters(prefix=[self._prefix, "seed_"])
+        self.seed_reconstruction.intensity_sigma = 0.6
         self.membrane_reconstruction = reconstruction.ReconstructionParameters(prefix=[self._prefix, "membrane_"])
+        self.membrane_reconstruction.intensity_sigma = 0.15
         self.morphosnake_reconstruction = reconstruction.ReconstructionParameters(prefix=[self._prefix, "morphosnake_"])
+        self.morphosnake_reconstruction.intensity_sigma = 0.15
 
         MorphoSnakeParameters.__init__(self, prefix=prefix)
 
@@ -2676,8 +2679,13 @@ def astec_process(previous_time, current_time, lineage_tree_information, experim
         monitoring.to_log_and_console("    .. seed image is identical to membrane image", 2)
         image_for_seed = membrane_image
     else:
+        suffix_glace = None
+        if ace.AceParameters.is_equal(parameters.seed_reconstruction, parameters.membrane_reconstruction) is True:
+            suffix_glace = "_membrane"
         image_for_seed = reconstruction.build_reconstructed_image(current_time, experiment,
-                                                                  parameters.seed_reconstruction, suffix="_seed")
+                                                                  parameters.seed_reconstruction, suffix="_seed",
+                                                                  suffix_glace=suffix_glace,
+                                                                  previous_time=previous_time)
     # seed_image = experiment.fusion_dir.get_image_name(current_time)
     # seed_image = common.find_file(experiment.fusion_dir.get_directory(), seed_image, file_type='image',
     # callfrom=proc, local_monitoring=None, verbose=False)
@@ -2861,9 +2869,16 @@ def astec_process(previous_time, current_time, lineage_tree_information, experim
             monitoring.to_log_and_console("    .. morphosnake image is identical to seed image", 2)
             image_for_morphosnake = image_for_seed
         else:
+            suffix_glace = None
+            if ace.AceParameters.is_equal(parameters.morphosnake_reconstruction, parameters.membrane_reconstruction) is True:
+                suffix_glace = "_membrane"
+            elif ace.AceParameters.is_equal(parameters.morphosnake_reconstruction, parameters.seed_reconstruction) is True:
+                suffix_glace = "_seed"
             image_for_morphosnake = reconstruction.build_reconstructed_image(current_time, experiment,
                                                                              parameters.morphosnake_reconstruction,
-                                                                             suffix="_morphosnake")
+                                                                             suffix="_morphosnake",
+                                                                             suffix_glace=suffix_glace,
+                                                                             previous_time=previous_time)
 
         output = _outer_volume_decrease_correction(astec_name, previous_segmentation, deformed_segmentation,
                                                    input_segmentation, image_for_morphosnake, correspondences,

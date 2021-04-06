@@ -1628,7 +1628,7 @@ def _diagnosis_lineage(direct_lineage, description, time_digits_for_cell_id=4):
         multiple_daughters.sort()
         monitoring.to_log_and_console("  - " + str(len(multiple_daughters))
                                       + " divisions yielding more than 2 branches", 1)
-        _print_list(multiple_daughters, time_digits_for_cell_id=time_digits_for_cell_id)
+        _print_list(multiple_daughters, time_digits_for_cell_id=time_digits_for_cell_id, verbose=1)
 
     monitoring.to_log("  - terminal branch lengths: ")
     monitoring.to_log("    " + str(branch_lengths))
@@ -1775,16 +1775,17 @@ def _diagnosis_name(name, lineage, description, time_digits_for_cell_id=4, verbo
                 missing_name[t] = [n]
             else:
                 missing_name[t].append(n)
-            mother = reverse_lineage[c]
-            if len(lineage[mother]) == 1 and mother in name:
-                msg = ": weird, cell " + str(c) + " has no name"
-                msg += ", but its mother cell " + str(mother) + " has a name " + str(name[mother])
-                monitoring.to_log_and_console(str(proc) + msg)
+            if c in reverse_lineage:
+                mother = reverse_lineage[c]
+                if len(lineage[mother]) == 1 and mother in name:
+                    msg = ": weird, cell " + str(c) + " has no name"
+                    msg += ", but its mother cell " + str(mother) + " has a name " + str(name[mother])
+                    monitoring.to_log_and_console(str(proc) + msg)
         elif c in reverse_lineage:
             mother = reverse_lineage[c]
             if mother not in name:
                 if verbose:
-                    msg = ": weird, cell " + str(c) + " has a name = " + str(name[c])
+                    msg = ": weird, cell " + str(c) + " has a name '" + str(name[c]) + "'"
                     msg += ", but its mother cell " + str(mother) + " has no name"
                     monitoring.to_log_and_console(str(proc) + msg)
                 if t not in error_name:
@@ -2039,11 +2040,11 @@ def _cell_id(c, time_digits_for_cell_id=4):
     return c
 
 
-def _print_list(tab, time_digits_for_cell_id=4):
+def _print_list(tab, time_digits_for_cell_id=4, verbose=2):
     for c in tab:
         t = c // 10**time_digits_for_cell_id
         c -= t * 10**time_digits_for_cell_id
-        monitoring.to_log_and_console("    - cell #" + str(c) + " of time " + str(t), 2)
+        monitoring.to_log_and_console("    - cell #" + str(c) + " of time " + str(t), verbose)
 
 
 def check_volume_lineage(d, time_digits_for_cell_id=4):

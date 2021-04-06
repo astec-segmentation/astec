@@ -55,7 +55,7 @@ def _set_options(my_parser):
 
     my_parser.add_argument('-o', '--output',
                            action='store', nargs='*', dest='outputFiles', const=None,
-                           help='output lineage file')
+                           help='output pkl or xml lineage file')
 
     my_parser.add_argument('-r', '--references',
                            action='store', nargs='*', dest='referenceFiles', const=None,
@@ -68,6 +68,11 @@ def _set_options(my_parser):
                            action='store_const', dest='diagnosis',
                            default=False, const=True,
                            help='make diagnosis on input file(s)')
+
+    my_parser.add_argument('-reference-diagnosis', '--reference-diagnosis',
+                           action='store_const', dest='reference_diagnosis',
+                           default=False, const=True,
+                           help='make diagnosis on reference file(s)')
 
     my_parser.add_argument('-fate', '--fate',
                            action='store_const', dest='fate',
@@ -163,22 +168,31 @@ def main():
         sys.exit(0)
 
     #
+    # read input file(s) from args, write output file from args
     #
-    #
+
+    time_digits_for_cell_id = experiment.get_time_digits_for_cell_id()
+
     if args.parameterFile is None:
+        prop = properties.read_dictionary(args.inputFiles, inputpropertiesdict={})
         if args.clean_reference:
-            prop = properties.read_dictionary(args.inputFiles, inputpropertiesdict={})
             prop = naming.clean_reference(prop)
-            if args.outputFiles is not None:
-                properties.write_dictionary(args.outputFiles[0], prop)
-        elif args.correction:
-            prop = properties.read_dictionary(args.inputFiles, inputpropertiesdict={})
-            prop = naming.correction(prop)
-            if args.outputFiles is not None:
-                properties.write_dictionary(args.outputFiles[0], prop)
-        elif args.diagnosis:
-            prop = properties.read_dictionary(args.inputFiles, inputpropertiesdict={})
-            naming.diagnosis(prop, time_digits_for_cell_id=experiment.get_time_digits_for_cell_id())
+        if args.correction:
+            prop = naming.correct_reference(prop)
+        if args.diagnosis:
+            diagnosis = properties.DiagnosisParameters()
+            properties.diagnosis(prop, None, diagnosis)
+            naming.diagnosis(prop, time_digits_for_cell_id=time_digits_for_cell_id)
+        if args.reference_diagnosis:
+            neighborhoods = naming.build_neighborhoods(args.inputFiles,
+                                                       time_digits_for_cell_id=time_digits_for_cell_id)
+            discrepancy = naming.check_leftright_consistency(neighborhoods)
+            prop = naming.add_leftright_discrepancy_selection(prop, discrepancy)
+        if args.fate:
+            prop = properties.set_fate_from_names(prop, time_digits_for_cell_id=time_digits_for_cell_id)
+            prop = properties.set_color_from_fate(prop)
+        if args.outputFiles is not None:
+            properties.write_dictionary(args.outputFiles[0], prop)
         sys.exit(0)
 
     #
@@ -246,20 +260,22 @@ def main():
     #
     # processing
     #
-    if args.diagnosis:
-        diagnosis = properties.DiagnosisParameters()
-        prop = properties.read_dictionary(args.inputFiles, inputpropertiesdict={})
-        properties.diagnosis(prop, None, diagnosis)
-        naming.diagnosis(prop, time_digits_for_cell_id=experiment.get_time_digits_for_cell_id())
-    elif args.fate:
-        prop = properties.read_dictionary(args.inputFiles, inputpropertiesdict={})
-        if args.outputFiles is not None:
+    if args.inputFiles is not None:
+        parameters.inputFiles += args.inputFiles
+    if args.referenceFiles is not None:
+        parameters.referenceFiles += args.referenceFiles
+    if args.parametersreference_diagnosis:
+        parameters.reference_diagnosis = True
+
+    time_digits_for_cell_id = experiment.get_time_digits_for_cell_id()
+
+    if args.fate:
+        prop = properties.read_dictionary(parameters.inputFiles, inputpropertiesdict={})
+        prop = properties.set_fate_from_names(prop, time_digits_for_cell_id=time_digits_for_cell_id)
+        prop = properties.set_color_from_fate(prop)
+        if isinstance(parameters.outputFile, str) is None and args.outputFiles is not None:
             properties.write_dictionary(args.outputFiles[0], prop)
     else:
-        if args.inputFiles is not None:
-            parameters.inputFiles += args.inputFiles
-        if args.referenceFiles is not None:
-            parameters.referenceFiles += args.referenceFiles
         naming.naming_process(experiment, parameters)
 
     #

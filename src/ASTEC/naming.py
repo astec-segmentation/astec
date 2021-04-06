@@ -51,6 +51,10 @@ class NamingParameters(common.PrefixedParameter):
         # for test:
         # names will be deleted, and tried to be rebuilt
         self.testFile = None
+        #
+        #
+        #
+        self.reference_diagnosis = False
 
     ############################################################
     #
@@ -71,6 +75,7 @@ class NamingParameters(common.PrefixedParameter):
         self.varprint('outputFile', self.outputFile)
         self.varprint('referenceFiles', self.referenceFiles)
         self.varprint('testFile', self.testFile)
+        self.varprint('reference_diagnosis', self.testFile)
 
     def write_parameters_in_file(self, logfile):
         logfile.write("\n")
@@ -85,6 +90,7 @@ class NamingParameters(common.PrefixedParameter):
         self.varwrite(logfile, 'outputFile', self.outputFile)
         self.varwrite(logfile, 'referenceFiles', self.referenceFiles)
         self.varwrite(logfile, 'testFile', self.testFile)
+        self.varwrite(logfile, 'reference_diagnosis', self.reference_diagnosis)
 
     def write_parameters(self, log_file_name):
         with open(log_file_name, 'a') as logfile:
@@ -102,6 +108,7 @@ class NamingParameters(common.PrefixedParameter):
         self.outputFile = self.read_parameter(parameters, 'outputFile', self.outputFile)
         self.referenceFiles = self.read_parameter(parameters, 'referenceFiles', self.referenceFiles)
         self.testFile = self.read_parameter(parameters, 'testFile', self.testFile)
+        self.reference_diagnosis = self.read_parameter(parameters, 'reference_diagnosis', self.reference_diagnosis)
 
     def update_from_parameter_file(self, parameter_file):
         if parameter_file is None:
@@ -176,9 +183,33 @@ def _get_sister_name(name):
     return sister_names[0]
 
 
+def _get_symmetric_name(name):
+    symname = name[:-1]
+    if name[-1] == '*':
+        symname += '_'
+    elif name[-1] == '_':
+        symname += '*'
+    else:
+        return None
+    return symname
+
+
+def _get_symmetric_neighborhood(neighborhood):
+    symneighborhood = {}
+    for n in neighborhood:
+        if n == 'background':
+            sn = 'background'
+        else:
+            sn = _get_symmetric_name(n)
+        symneighborhood[sn] = neighborhood[n]
+    return symneighborhood
+
+
 ########################################################################################
 #
 # diagnosis on naming
+# is redundant with the diagnosis may in properties.py
+# (except that contact surfaces are assessed too)
 #
 ########################################################################################
 
@@ -379,13 +410,13 @@ def diagnosis(prop, time_digits_for_cell_id=4, verbose=True):
 
 ########################################################################################
 #
-# basic correction on pre-existing naming
+# obsolete: basic correction on pre-existing naming
 # was developed for correction/evaluation of reference embryos
 #
 ########################################################################################
 
-def correction(prop):
-    proc = "correction"
+def correct_reference(prop):
+    proc = "correct_reference"
     #
     # correction of prop['cell_name']
     #
@@ -497,7 +528,7 @@ def correction(prop):
 
 ########################################################################################
 #
-# do some cleaning (keep time interval without errors)
+# obsolete: do some cleaning (keep time interval without errors)
 # was developed for correction/evaluation of reference embryos
 # and assessment of the developed method
 #
@@ -748,8 +779,9 @@ def _add_neighborhoods(previous_neighborhoods, prop, reference_name, time_digits
     proc = "_add_neighborhoods"
 
     #
-    # build a dictionary of neighborhood, where the key is the cell name
-    # and values are array ['reference name', neighborhood] where 'reference name' is the name
+    # build a nested dictionary of neighborhood, where the keys are
+    # ['cell name']['reference name']
+    # where 'reference name' is the name
     # of the reference lineage, and neighborhood a dictionary of contact surfaces indexed by cell names
     # only consider the first time point after the division
     #
@@ -849,6 +881,24 @@ def _add_neighborhoods(previous_neighborhoods, prop, reference_name, time_digits
     return previous_neighborhoods
 
 
+def build_neighborhoods(referenceFiles, time_digits_for_cell_id):
+    neighborhoods = {}
+    if isinstance(referenceFiles, str):
+        prop = properties.read_dictionary(referenceFiles, inputpropertiesdict={})
+        name = referenceFiles.split(os.path.sep)[-1]
+        neighborhoods = _add_neighborhoods(neighborhoods, prop, reference_name=name,
+                                           time_digits_for_cell_id=time_digits_for_cell_id)
+        del prop
+    elif isinstance(referenceFiles, list):
+        for f in referenceFiles:
+            prop = properties.read_dictionary(f, inputpropertiesdict={})
+            name = f.split(os.path.sep)[-1]
+            neighborhoods = _add_neighborhoods(neighborhoods, prop, reference_name=name,
+                                               time_digits_for_cell_id=time_digits_for_cell_id)
+            del prop
+    return neighborhoods
+
+
 #
 # build a common representation of two neighborhood
 #
@@ -936,15 +986,19 @@ def _get_score(neigh0, neigh1, title=None):
     return score
 
 
+########################################################################################
 #
 #
 #
+########################################################################################
+
 def _check_neighborhood_consistency(neighborhoods):
     proc = "_check_neighborhood_consistency"
 
     monitoring.to_log_and_console("")
     monitoring.to_log_and_console(str(proc))
-    monitoring.to_log_and_console("-------------------------------")
+    monitoring.to_log_and_console("-------------------------------------------")
+    monitoring.to_log_and_console("--- reference neighborhoods consistency ---")
 
     #
     # list of daughter cells
@@ -1072,9 +1126,191 @@ def _check_neighborhood_consistency(neighborhoods):
     msg = "divisions with discrepancies =  " + str(len(discrepancy))
     monitoring.to_log_and_console("\t " + msg)
 
-    monitoring.to_log_and_console("-------------------------------")
+    monitoring.to_log_and_console("-------------------------------------------")
     monitoring.to_log_and_console("")
     return
+
+
+def check_leftright_consistency(neighborhoods):
+    proc = "_check_leftright_consistency"
+    monitoring.to_log_and_console("-------------------------------------------")
+    monitoring.to_log_and_console("--- left/right neighborhood consistency ---")
+
+    #
+    # list of daughter cells
+    #
+    cell_names = sorted(list(neighborhoods.keys()))
+
+    #
+    # get the list of references per division
+    #
+    references = {}
+    for cell_name in cell_names:
+        mother_name = _get_mother_name(cell_name)
+        if mother_name not in references:
+            references[mother_name] = set(neighborhoods[cell_name].keys())
+        else:
+            references[mother_name].union(set(neighborhoods[cell_name].keys()))
+
+    #
+    #
+    #
+    mother_names = sorted(list(references.keys()))
+    processed_mothers = []
+    discrepancy = {}
+    tested_cells = {}
+    for mother in mother_names:
+        if mother in processed_mothers:
+            continue
+        symmother = _get_symmetric_name(mother)
+        processed_mothers.append(mother)
+
+        if symmother not in references:
+            continue
+        daughters = _get_daughter_names(mother)
+
+        for reference in references[mother]:
+            if reference not in references[symmother]:
+                continue
+
+            if reference not in tested_cells:
+                tested_cells[reference] = 1
+            else:
+                tested_cells[reference] += 1
+
+            for daughter in daughters:
+                if daughter not in neighborhoods:
+                    continue
+                if reference not in neighborhoods[daughter]:
+                    continue
+                symdaughter = _get_symmetric_name(daughter)
+                symsister = _get_sister_name(symdaughter)
+                if symdaughter not in neighborhoods or symsister not in neighborhoods:
+                    continue
+                if reference not in neighborhoods[symdaughter] or reference not in neighborhoods[symsister]:
+                    continue
+                #
+                #
+                #
+                symsameneigh = _get_symmetric_neighborhood(neighborhoods[symdaughter][reference])
+                symsisterneigh = _get_symmetric_neighborhood(neighborhoods[symsister][reference])
+
+                same_choice = _get_score(neighborhoods[daughter][reference], symsameneigh)
+                sister_choice = _get_score(neighborhoods[daughter][reference], symsisterneigh)
+
+                if same_choice > sister_choice:
+                    continue
+
+                if reference not in discrepancy:
+                    discrepancy[reference] = {}
+                if mother not in discrepancy[reference]:
+                    discrepancy[reference][mother] = [(daughter, symdaughter)]
+                else:
+                    discrepancy[reference][mother].append((daughter, symdaughter))
+
+                msg = "   - '" + str(reference) + "': " + str(daughter) + " neighborhood is closest to "
+                msg += str(symsister) + " neighborhood than to " + str(symdaughter) + " one"
+                monitoring.to_log_and_console(msg, 3)
+
+    for reference in discrepancy:
+        msg = "- '" + str(reference) + "' tested divisions = " + str(tested_cells[reference])
+        monitoring.to_log_and_console(msg)
+        msg = "\t divisions with left/right discrepancies =  " + str(len(discrepancy[reference]))
+        monitoring.to_log_and_console(msg)
+
+        processed_mothers = []
+        for mother in discrepancy[reference]:
+            if mother in processed_mothers:
+                continue
+            symmother = _get_symmetric_name(mother)
+            processed_mothers += [mother, symmother]
+
+            d = len(discrepancy[reference][mother])
+            if symmother in discrepancy[reference]:
+                d += len(discrepancy[reference][symmother])
+
+            msg = "(" + str(mother) + ", " + str(symmother) + ") divisions: " + str(d)
+            if d == 1:
+                msg += " discrepancy"
+            else:
+                msg += " discrepancies"
+            monitoring.to_log_and_console("\t - " + msg)
+
+    monitoring.to_log_and_console("-------------------------------------------")
+    monitoring.to_log_and_console("")
+    return discrepancy
+
+
+def neighborhood_diagnosis(neighborhoods):
+    check_leftright_consistency(neighborhoods)
+    _check_neighborhood_consistency(neighborhoods)
+
+
+def add_leftright_discrepancy_selection(d, discrepancy):
+    #
+    # a selection for all discrepancies
+    #
+    d['selection_leftright_discrepancy'] = {}
+    allmother = []
+    alldaughter0 = []
+    alldaughter1 = []
+    alldiscrepancies = {}
+    for reference in discrepancy:
+        for mother in discrepancy[reference]:
+            daughters = _get_daughter_names(mother)
+            symmother = _get_symmetric_name(mother)
+            symdaughters = [_get_symmetric_name(daughters[0]), _get_symmetric_name(daughters[1])]
+
+            allmother.append(mother)
+            allmother.append(symmother)
+            alldaughter0.append(daughters[0])
+            alldaughter0.append(symdaughters[0])
+            alldaughter1.append(daughters[1])
+            alldaughter1.append(symdaughters[1])
+
+            nd = len(discrepancy[reference][mother])
+            if symmother in discrepancy[reference]:
+                nd += len(discrepancy[reference][symmother])
+
+            alldiscrepancies[mother] = nd
+            alldiscrepancies[symmother] = nd
+            alldiscrepancies[daughters[0]] = nd
+            alldiscrepancies[symdaughters[0]] = nd
+            alldiscrepancies[daughters[1]] = nd
+            alldiscrepancies[symdaughters[1]] = nd
+
+    for c in d['cell_name']:
+        if d['cell_name'][c] in allmother:
+            d['selection_leftright_discrepancy'][c] = alldiscrepancies[d['cell_name'][c]] * 10
+        elif d['cell_name'][c] in alldaughter0:
+            d['selection_leftright_discrepancy'][c] = alldiscrepancies[d['cell_name'][c]] * 10 + 1
+        elif d['cell_name'][c] in alldaughter1:
+            d['selection_leftright_discrepancy'][c] = alldiscrepancies[d['cell_name'][c]] * 10 + 2
+
+    for reference in discrepancy:
+        for mother in discrepancy[reference]:
+            daughters = _get_daughter_names(mother)
+            symmother = _get_symmetric_name(mother)
+            allmother = [mother, symmother]
+            alldaughter0 = [daughters[0], _get_symmetric_name(daughters[0])]
+            alldaughter1 = [daughters[0], _get_symmetric_name(daughters[1])]
+
+            nd = len(discrepancy[reference][mother])
+            if symmother in discrepancy[reference]:
+                nd += len(discrepancy[reference][symmother])
+            key = 'selection_leftright_' + str(nd) + '_' + mother[:-1]
+            d[key] = {}
+
+            for c in d['cell_name']:
+                if d['cell_name'][c] in allmother:
+                    d[key][c] = alldiscrepancies[d['cell_name'][c]] * 10
+                elif d['cell_name'][c] in alldaughter0:
+                    d[key][c] = alldiscrepancies[d['cell_name'][c]] * 10 + 1
+                elif d['cell_name'][c] in alldaughter1:
+                    d[key][c] = alldiscrepancies[d['cell_name'][c]] * 10 + 2
+
+    return d
+
 
 
 ########################################################################################
@@ -1464,7 +1700,7 @@ def _propagate_naming(prop, neighborhoods, time_digits_for_cell_id=4):
 ########################################################################################
 
 def naming_process(experiment, parameters):
-    proc = "postcorrection_process"
+    proc = "naming_process"
     #
     # parameter type checking
     #
@@ -1484,22 +1720,11 @@ def naming_process(experiment, parameters):
     #
     # should we clean reference here?
     #
-    neighborhoods = {}
-    if isinstance(parameters.referenceFiles, str):
-        prop = properties.read_dictionary(parameters.referenceFiles, inputpropertiesdict={})
-        name = parameters.referenceFiles.split(os.path.sep)[-1]
-        neighborhoods = _add_neighborhoods(neighborhoods, prop, reference_name=name,
-                                           time_digits_for_cell_id=time_digits_for_cell_id)
-        del prop
-    elif isinstance(parameters.referenceFiles, list):
-        for f in parameters.referenceFiles:
-            prop = properties.read_dictionary(f, inputpropertiesdict={})
-            name = f.split(os.path.sep)[-1]
-            neighborhoods = _add_neighborhoods(neighborhoods, prop, reference_name=name,
-                                               time_digits_for_cell_id=time_digits_for_cell_id)
-            del prop
+    neighborhoods = build_neighborhoods(parameters.referenceFiles, time_digits_for_cell_id=time_digits_for_cell_id)
+    if parameters.reference_diagnosis:
+        neighborhood_diagnosis(neighborhoods)
 
-    _check_neighborhood_consistency(neighborhoods)
+
     # for c in neighborhoods:
     #     print("- #" + str(len(neighborhoods[c])) + " : " + str(neighborhoods[c]))
 
