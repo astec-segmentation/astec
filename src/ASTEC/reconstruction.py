@@ -884,6 +884,7 @@ def build_reconstructed_image(current_time, experiment, parameters, suffix=None,
                 enhanced_image = common.find_file(experiment.working_dir.get_tmp_directory(0), enhanced_name,
                                                  file_type='image', callfrom=proc, local_monitoring=None, verbose=False)
                 if enhanced_image is not None:
+                    enhanced_image = os.path.join(experiment.working_dir.get_tmp_directory(0), enhanced_image)
                     monitoring.to_log_and_console("       use cell enhancement image '"
                                                   + str(enhanced_image).split(os.path.sep)[-1] + "'", 2)
             if (parameters.intensity_transformation is None or parameters.intensity_transformation.lower() == 'none') \
