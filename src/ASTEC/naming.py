@@ -881,10 +881,12 @@ def _add_neighborhoods(previous_neighborhoods, prop, reference_name, time_digits
     return previous_neighborhoods
 
 
-def build_neighborhoods(referenceFiles, time_digits_for_cell_id):
+def build_neighborhoods(referenceFiles, time_digits_for_cell_id, reference_diagnosis=False):
     neighborhoods = {}
     if isinstance(referenceFiles, str):
         prop = properties.read_dictionary(referenceFiles, inputpropertiesdict={})
+        if reference_diagnosis:
+            diagnosis(prop, time_digits_for_cell_id=time_digits_for_cell_id)
         name = referenceFiles.split(os.path.sep)[-1]
         neighborhoods = _add_neighborhoods(neighborhoods, prop, reference_name=name,
                                            time_digits_for_cell_id=time_digits_for_cell_id)
@@ -892,6 +894,8 @@ def build_neighborhoods(referenceFiles, time_digits_for_cell_id):
     elif isinstance(referenceFiles, list):
         for f in referenceFiles:
             prop = properties.read_dictionary(f, inputpropertiesdict={})
+            if reference_diagnosis:
+                diagnosis(prop, time_digits_for_cell_id=time_digits_for_cell_id)
             name = f.split(os.path.sep)[-1]
             neighborhoods = _add_neighborhoods(neighborhoods, prop, reference_name=name,
                                                time_digits_for_cell_id=time_digits_for_cell_id)
@@ -1079,11 +1083,19 @@ def _check_neighborhood_consistency(neighborhoods):
             else:
                 first_discrepancy[n] = discrepancy[n]
         #
-        mother_names = sorted(first_discrepancy.keys())
+
+        mother_names = first_discrepancy.keys()
         if len(mother_names) > 0:
-            msg = "first occurring discrepancies = " + str(len(first_discrepancy))
-            monitoring.to_log_and_console(msg)
+
+            percents = []
             for mother_name in mother_names:
+                percents.append(100.0 * float(len(discrepancy[mother_name])) / float(tested_couples[mother_name]))
+            [sorted_percents, sorted_mothers] = zip(*sorted(zip(percents, mother_names), reverse=True))
+
+            msg = "\n*** first order discrepancies = " + str(len(first_discrepancy))
+            monitoring.to_log_and_console(msg)
+
+            for mother_name in sorted_mothers:
                 msg = " - " + str(mother_name) + " cell division into "
                 msg += str(_get_daughter_names(mother_name)) + " has " + str(len(discrepancy[mother_name]))
                 if len(discrepancy[mother_name]) > 1:
@@ -1091,20 +1103,26 @@ def _check_neighborhood_consistency(neighborhoods):
                 else:
                     msg += " discrepancy"
                 percent = 100.0 * float(len(discrepancy[mother_name])) / float(tested_couples[mother_name])
-                msg += " (" + "{:2.2f}".format(percent) + ") "
+                msg += " (" + "{:2.2f}%".format(percent) + ") "
                 msg += " over " + str(tested_couples[mother_name]) + " tested configurations "
                 monitoring.to_log_and_console(msg)
                 msg = "\t over " + str(len(references[mother_name]))
                 msg += " references: " + str(references[mother_name])
                 monitoring.to_log_and_console(msg)
                 msg = "\t " + str(discrepancy[mother_name])
-                monitoring.to_log_and_console(msg, 4)
+                monitoring.to_log_and_console(msg, 3)
         #
-        mother_names = sorted(second_discrepancy.keys())
+        mother_names = second_discrepancy.keys()
         if len(mother_names) > 0:
-            msg = "induced discrepancies = " + str(len(second_discrepancy))
-            monitoring.to_log_and_console(msg)
+
+            percents = []
             for mother_name in mother_names:
+                percents.append(100.0 * float(len(discrepancy[mother_name])) / float(tested_couples[mother_name]))
+            [sorted_percent, sorted_mothers] = zip(*sorted(zip(percents, mother_names), reverse=True))
+
+            msg = "\n*** second order discrepancies = " + str(len(second_discrepancy))
+            monitoring.to_log_and_console(msg)
+            for mother_name in sorted_mothers:
                 msg = " - " + str(mother_name) + " cell division into "
                 msg += str(_get_daughter_names(mother_name)) + " has " + str(len(discrepancy[mother_name]))
                 if len(discrepancy[mother_name]) > 1:
@@ -1112,14 +1130,14 @@ def _check_neighborhood_consistency(neighborhoods):
                 else:
                     msg += " discrepancy"
                 percent = 100.0 * float(len(discrepancy[mother_name])) / float(tested_couples[mother_name])
-                msg += " (" + "{:2.2f}".format(percent) + ") "
+                msg += " (" + "{:2.2f}%".format(percent) + ") "
                 msg += " over " + str(tested_couples[mother_name]) + " tested configurations "
                 monitoring.to_log_and_console(msg)
                 msg = "\t over " + str(len(references[mother_name]))
                 msg += " references: " + str(references[mother_name])
                 monitoring.to_log_and_console(msg)
                 msg = "\t " + str(discrepancy[mother_name])
-                monitoring.to_log_and_console(msg, 4)
+                monitoring.to_log_and_console(msg, 3)
 
     msg = "tested divisions = " + str(len(tested_couples))
     monitoring.to_log_and_console(str(proc) + ": " + msg)
@@ -1215,9 +1233,11 @@ def check_leftright_consistency(neighborhoods):
     for reference in discrepancy:
         msg = "- '" + str(reference) + "' tested divisions = " + str(tested_cells[reference])
         monitoring.to_log_and_console(msg)
-        msg = "\t divisions with left/right discrepancies =  " + str(len(discrepancy[reference]))
-        monitoring.to_log_and_console(msg)
 
+        #
+        # get the mother cell for each discrepancy value
+        #
+        mother_by_discrepancy = {}
         processed_mothers = []
         for mother in discrepancy[reference]:
             if mother in processed_mothers:
@@ -1228,13 +1248,36 @@ def check_leftright_consistency(neighborhoods):
             d = len(discrepancy[reference][mother])
             if symmother in discrepancy[reference]:
                 d += len(discrepancy[reference][symmother])
-
-            msg = "(" + str(mother) + ", " + str(symmother) + ") divisions: " + str(d)
-            if d == 1:
-                msg += " discrepancy"
+            if d not in mother_by_discrepancy:
+                mother_by_discrepancy[d] = [mother]
             else:
-                msg += " discrepancies"
-            monitoring.to_log_and_console("\t - " + msg)
+                mother_by_discrepancy[d].append(mother)
+
+        divisions_with_discrepancy = 0
+        for d in mother_by_discrepancy:
+            divisions_with_discrepancy += len(mother_by_discrepancy[d])
+        msg = "\t divisions with left/right discrepancies =  " + str(divisions_with_discrepancy)
+        monitoring.to_log_and_console(msg)
+
+        for d in sorted(mother_by_discrepancy.keys()):
+            if d == 1:
+                msg = "\t - divisions with left/right " + str(d) + " discrepancy = "
+            else:
+                msg = "\t - divisions with left/right " + str(d) + " discrepancies = "
+            msg += str(len(mother_by_discrepancy[d]))
+            monitoring.to_log_and_console(msg)
+            processed_mothers = []
+            for mother in mother_by_discrepancy[d]:
+                if mother in processed_mothers:
+                    continue
+                symmother = _get_symmetric_name(mother)
+                processed_mothers += [mother, symmother]
+                msg = "(" + str(mother) + ", " + str(symmother) + ") divisions: " + str(d)
+                if d == 1:
+                    msg += " discrepancy"
+                else:
+                    msg += " discrepancies"
+                monitoring.to_log_and_console("\t   " + msg)
 
     monitoring.to_log_and_console("-------------------------------------------")
     monitoring.to_log_and_console("")
@@ -1582,7 +1625,7 @@ def _propagate_naming(prop, neighborhoods, time_digits_for_cell_id=4):
                 monitoring.to_log_and_console(str(proc) + ": weird, cell " + str(mother) + " is not in lineage")
                 continue
             if mother not in prop['cell_name']:
-                monitoring.to_log_and_console(str(proc) + ": cell " + str(mother) + " is not named", 4)
+                monitoring.to_log_and_console(str(proc) + ": cell " + str(mother) + " is not named", 5)
                 if mother in ancestor_name:
                     ancestor_name[c] = ancestor_name[mother]
                 else:
@@ -1720,7 +1763,8 @@ def naming_process(experiment, parameters):
     #
     # should we clean reference here?
     #
-    neighborhoods = build_neighborhoods(parameters.referenceFiles, time_digits_for_cell_id=time_digits_for_cell_id)
+    neighborhoods = build_neighborhoods(parameters.referenceFiles, time_digits_for_cell_id=time_digits_for_cell_id,
+                                        reference_diagnosis=parameters.reference_diagnosis)
     if parameters.reference_diagnosis:
         neighborhood_diagnosis(neighborhoods)
 
@@ -1741,7 +1785,6 @@ def naming_process(experiment, parameters):
         if prop is None:
             monitoring.to_log_and_console(str(proc) + ": error when building test set")
             sys.exit(1)
-        _check_neighborhood_consistency(neighborhoods)
     elif parameters.inputFiles is not None:
         prop = properties.read_dictionary(parameters.inputFiles, inputpropertiesdict={})
 

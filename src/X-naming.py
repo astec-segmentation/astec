@@ -264,7 +264,7 @@ def main():
         parameters.inputFiles += args.inputFiles
     if args.referenceFiles is not None:
         parameters.referenceFiles += args.referenceFiles
-    if args.parametersreference_diagnosis:
+    if args.reference_diagnosis:
         parameters.reference_diagnosis = True
 
     time_digits_for_cell_id = experiment.get_time_digits_for_cell_id()
