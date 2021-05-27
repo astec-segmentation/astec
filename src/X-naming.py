@@ -79,16 +79,6 @@ def _set_options(my_parser):
                            default=False, const=True,
                            help='propagate fates on input file(s), naming being already done')
 
-    my_parser.add_argument('-correction', '--correction',
-                           action='store_const', dest='correction',
-                           default=False, const=True,
-                           help='make name corrections on input file(s)')
-
-    my_parser.add_argument('-clean', '--clean-reference',
-                           action='store_const', dest='clean_reference',
-                           default=False, const=True,
-                           help="build a 'clean' reference property file")
-
     #
     # control parameters
     #
@@ -175,10 +165,6 @@ def main():
 
     if args.parameterFile is None:
         prop = properties.read_dictionary(args.inputFiles, inputpropertiesdict={})
-        if args.clean_reference:
-            prop = naming.clean_reference(prop)
-        if args.correction:
-            prop = naming.correct_reference(prop)
         if args.diagnosis:
             diagnosis = properties.DiagnosisParameters()
             properties.diagnosis(prop, None, diagnosis)
