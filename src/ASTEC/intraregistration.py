@@ -116,7 +116,7 @@ class IntraRegParameters(common.PrefixedParameter):
         doc += "\t However, for visualization purposes, it may be indicated to\n"
         doc += "\t have a larger voxel size (hence the 0.6 instead of 0.3)\n"
         self.doc['resolution'] = doc
-        self.resolution = 0.6
+        self.resolution = 0.3
 
         #
         # force rebuilding of template and of transformations versus a reference

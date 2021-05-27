@@ -268,7 +268,7 @@ def normalize_dictionary_keys(inputdict):
             # print "       compare '" + str(tmpkey) + "' with '" + str(k) + "'"
             if inputkey in keydictionary[k]['input_keys']:
                 outputkey = keydictionary[k]['output_key']
-                monitoring.to_log_and_console("   ... recognized key '" + str(outputkey) + "'", 3)
+                # monitoring.to_log_and_console("   ... recognized key '" + str(outputkey) + "'", 4)
                 #
                 # update if key already exists, else just create the dictionary entry
                 #
@@ -901,6 +901,40 @@ def write_dictionary(inputfilename, inputpropertiesdict):
         monitoring.to_log_and_console(str(proc) + ": error when writing lineage file. Extension not recognized for '"
                                       + os.path.basename(inputfilename) + "'", 1)
     return
+
+########################################################################################
+#
+#
+#
+########################################################################################
+
+def write_morphonet_selection(d, time_digits_for_cell_id=4):
+    div = 10 ** time_digits_for_cell_id
+    for key in d:
+        if not isinstance(key, str):
+            # print("skip key '" + str(key) + "', not a string")
+            continue
+        if len(key) < 10:
+            # print("skip key '" + str(key) + "', too short")
+            continue
+        if key[:9] != 'selection':
+            # print("skip key '" + str(key) + "', not a selection")
+            continue
+
+        name = None
+        if key[:10] == 'selection_':
+            name = key[10:]
+        else:
+            name = key[9:]
+
+        # print("write key '" + str(key) + "'")
+
+        f = open(key + '.txt', "w")
+        f.write("# " + name + "\n")
+        f.write("type:selection\n")
+        for c in d[key]:
+            f.write("{:d}".format(int(c) / div) + ", {:d}".format(int(c) % div) + ":" + str(d[key][c]) + "\n")
+        f.close()
 
 
 ########################################################################################

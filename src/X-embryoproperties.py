@@ -76,6 +76,11 @@ def _set_options(my_parser):
                            action='store', dest='diagnosis_minimal_volume',
                            help='displays all cells with smaller volume')
 
+    my_parser.add_argument('-extract-selection', '--extract-selection',
+                           action='store_const', dest='extract_selection',
+                           default=False, const=True,
+                           help='convert xml selections into morphonet files')
+
     my_parser.add_argument('-fate', '--compute-fate',
                            action='store_const', dest='compute_fate',
                            default=False, const=True,
@@ -409,6 +414,10 @@ if __name__ == '__main__':
             for ofile in args.outputFiles:
                 print "... writing '" + str(ofile) + "'"
                 properties.write_dictionary(ofile, outputdict)
+
+        if args.extract_selection:
+            time_digits_for_cell_id = experiment.get_time_digits_for_cell_id()
+            properties.write_morphonet_selection(inputdict, time_digits_for_cell_id=time_digits_for_cell_id)
 
         endtime = time.localtime()
 
