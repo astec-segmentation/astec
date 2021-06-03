@@ -435,6 +435,15 @@ def apply_transformation(the_image, res_image, the_transformation=None,
               res_transformation=res_transformation, voxel_size=voxel_size, dimensions=dimensions,
               interpolation_mode=interpolation_mode, cell_based_sigma=cell_based_sigma, monitoring=monitoring)
 
+    # interpolation may put '0' values in segmentation images
+    # change 0 into 1 for further computation
+    # mainly useful for morphonet visualization
+    if interpolation_mode.lower() == 'nearest':
+        if os.path.isfile(res_image):
+            path_to_exec = _find_exec('changevals')
+            command_line = path_to_exec + " " + res_image + " " + res_image + " -modify 0 1"
+            _launch_inline_cmd(command_line, monitoring=monitoring)
+
     if return_image is True:
         out = imread(res_image)
         return out
