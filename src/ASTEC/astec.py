@@ -2320,6 +2320,9 @@ def _outer_volume_decrease_correction(astec_name, previous_segmentation, deforme
     # is there is a correction to be done (cell has gained over the background),
     # then fuse all "daughter" cell
     #
+    # For reproductibility, sort the outputs wrt mother cell id
+    #
+    outputs.sort()
     effective_exterior_correction = []
     for mother_c, bb, cell_out in outputs:
         daughter_c = correspondences[mother_c][0]

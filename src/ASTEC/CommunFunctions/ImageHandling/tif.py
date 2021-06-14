@@ -172,7 +172,7 @@ def write_tif(filename, obj):
                   "YResolution": vsy,
                   #"ZResolution": str(vsz), # : no way to save the spacing (no specific tag)
                   }
-    print extra_info
+    # print extra_info
     return pylibtiff_write_file(image, filename, info=extra_info)
     #return image.write_file(filename, compression='lzw')
 
@@ -210,9 +210,9 @@ def pylibtiff_write_file(tif, filename, compression="none",
         if os.path.splitext (filename)[1].lower () not in ['.tif', '.tiff']:
             filename = filename + '.tif'
 
-        if verbose:
-            sys.stdout.write('Writing TIFF records to %s\n' % (filename))
-            sys.stdout.flush()
+        # if verbose:
+        #     sys.stdout.write('Writing TIFF records to %s\n' % (filename))
+        #     sys.stdout.flush()
 
         compression_map = dict(packbits=32773, none=1, lzw=5, jpeg=6, ccitt1d=2,
                                group3fax = 3, group4fax = 4
@@ -231,9 +231,9 @@ def pylibtiff_write_file(tif, filename, compression="none",
         data_size = 0
         image_data_size = 0
         for i,image in enumerate(tif.data):
-            if verbose:
-                sys.stdout.write('\r  creating records: %5s%% done  ' % (int(100.0*i/len(tif.data))))
-                sys.stdout.flush ()
+            # if verbose:
+            #     sys.stdout.write('\r  creating records: %5s%% done  ' % (int(100.0*i/len(tif.data))))
+            #     sys.stdout.flush ()
             if image.dtype.kind=='V' and len(image.dtype.names)==3: # RGB image
                 sample_format = dict(u=1,i=2,f=3,c=6).get(image.dtype.fields[image.dtype.names[0]][0].kind)
                 bits_per_sample = [image.dtype.fields[f][0].itemsize*8 for f in image.dtype.names]
@@ -389,14 +389,14 @@ def pylibtiff_write_file(tif, filename, compression="none",
             offset += 4
             assert offset <= first_data_offset,`offset, first_data_offset`
 
-            if verbose:
-                sys.stdout.write('\r  filling records: %5s%% done (%s/s)%s' \
-                                     % (int(100.0*(i+1)/len(image_directories)),
-                                        bytes2str(int((image_data_offset-first_image_data_offset)/(time.time ()-start_time))),
-                                        ' '*2))
-                if (i+1)==len (image_directories):
-                    sys.stdout.write ('\n')
-                sys.stdout.flush ()
+            # if verbose:
+            #     sys.stdout.write('\r  filling records: %5s%% done (%s/s)%s' \
+            #                          % (int(100.0*(i+1)/len(image_directories)),
+            #                             bytes2str(int((image_data_offset-first_image_data_offset)/(time.time ()-start_time))),
+            #                             ' '*2))
+            #     if (i+1)==len (image_directories):
+            #         sys.stdout.write ('\n')
+            #     sys.stdout.flush ()
 
 
         # last offset must be 0
