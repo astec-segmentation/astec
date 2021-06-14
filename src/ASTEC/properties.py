@@ -3,7 +3,7 @@ import os
 import imp
 import sys
 
-import cPickle as pkl
+import pickle as pkl
 import copy
 import xml.etree.ElementTree as ElementTree
 import numpy as np
@@ -12,9 +12,9 @@ from scipy import ndimage as nd
 
 from operator import itemgetter
 
-import common
-import CommunFunctions.cpp_wrapping as cpp_wrapping
-from CommunFunctions.ImageHandling import imread
+import ASTEC.common as common
+from ASTEC.CommunFunctions.ImageHandling import imread
+import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
 
 #
 #
@@ -285,14 +285,14 @@ def normalize_dictionary_keys(inputdict):
 def get_dictionary_entry(inputdict, keystring):
     proc = 'get_dictionary_entry'
     if keystring not in keydictionary:
-        monitoring.to_log_and_console(str(proc) + ": keystring must be in " + str(keydictionary.keys()), 1)
+        monitoring.to_log_and_console(str(proc) + ": keystring must be in " + str(list(keydictionary.keys())), 1)
         return {}
     for k in keydictionary[keystring]['input_keys']:
         if k in inputdict:
             return inputdict[k]
     else:
         monitoring.to_log_and_console(str(proc) + ": '" + str(keystring) + "' was not found in input dictionary", 1)
-        monitoring.to_log_and_console("    keys were: " + str(inputdict.keys()), 1)
+        monitoring.to_log_and_console("    keys were: " + str(list(inputdict.keys())), 1)
         return {}
 
 ########################################################################################
@@ -399,7 +399,7 @@ def _set_xml_element_text(element, value):
 
     if type(value) == dict:
         # print proc + ": type is dict"
-        keylist = value.keys()
+        keylist = list(value.keys())
         keylist.sort()
         for k in keylist:
             _dict2xml(element, k, value[k])
@@ -532,14 +532,14 @@ def dict2xml(dictionary, defaultroottag='data'):
 
     if len(dictionary) == 1:
 
-        roottag = dictionary.keys()[0]
+        roottag = list(dictionary.keys())[0]
         root = ElementTree.Element(roottag)
         _set_xml_element_text(root, dictionary[roottag])
 
     elif len(dictionary) > 1:
 
         root = ElementTree.Element(defaultroottag)
-        for k, v in dictionary.iteritems():
+        for k, v in dictionary.items():
             _dict2xml(root, k, v)
 
     else:
@@ -609,7 +609,7 @@ def xml2dict(tree):
 
     dictionary = {}
 
-    for k, v in keydictionary.iteritems():
+    for k, v in keydictionary.items():
 
         if root.tag == v['output_key']:
             monitoring.to_log_and_console("   ... " + proc + ": process root.tag = '" + str(root.tag) + "'", 3)
@@ -676,7 +676,7 @@ def _update_read_dictionary(propertiesdict, tmpdict, filename):
         if foundkey is False:
             unknownkeys.append(tmpkey)
 
-    if len(unknownkeys) > 0 and len(unknownkeys) == len(tmpdict.keys()):
+    if len(unknownkeys) > 0 and len(unknownkeys) == len(list(tmpdict.keys())):
         #
         # no key was found
         # it is assumed it's a lineage tree: add some test here ?
@@ -779,7 +779,7 @@ def _read_xml_file(filename, propertiesdict):
 
 def _read_pkl_file(filename, propertiesdict):
     monitoring.to_log_and_console("... reading '" + str(filename) + "'", 1)
-    inputfile = open(filename, 'r')
+    inputfile = open(filename, 'rb')
     tmpdict = pkl.load(inputfile)
     inputfile.close()
     propertiesdict = _update_read_dictionary(propertiesdict, tmpdict, filename)
@@ -888,7 +888,7 @@ def write_dictionary(inputfilename, inputpropertiesdict):
     proc = 'write_dictionary'
 
     if inputfilename.endswith("pkl") is True:
-        lineagefile = open(inputfilename, 'w')
+        lineagefile = open(inputfilename, 'wb')
         pkl.dump(inputpropertiesdict, lineagefile)
         lineagefile.close()
     elif inputfilename.endswith("xml") is True:
@@ -951,7 +951,7 @@ def _decode_cell_id(s, time_digits_for_cell_id=4):
 
 def _get_time_interval_from_lineage(direct_lineage, time_digits_for_cell_id=4):
 
-    nodes = list(set(direct_lineage.keys()).union(set([v for values in direct_lineage.values() for v in values])))
+    nodes = list(set(direct_lineage.keys()).union(set([v for values in list(direct_lineage.values()) for v in values])))
     first_time = min(nodes) / 10 ** time_digits_for_cell_id
     last_time = max(nodes) / 10 ** time_digits_for_cell_id
     # monitoring.to_log_and_console("  - estimated time interval = [" + str(first_time) + ", " + str(last_time) + "]", 1)
@@ -995,8 +995,8 @@ def _intersection_cell_keys(e1, e2, name1, name2):
     difference1 = list(set(e1.keys()).difference(set(e2.keys())))
     difference2 = list(set(e2.keys()).difference(set(e1.keys())))
 
-    monitoring.to_log_and_console("    ... " + str(len(e1.keys())) + " cells are in '" + str(name1) + "'")
-    monitoring.to_log_and_console("    ... " + str(len(e2.keys())) + " cells are in '" + str(name2) + "'")
+    monitoring.to_log_and_console("    ... " + str(len(list(e1.keys()))) + " cells are in '" + str(name1) + "'")
+    monitoring.to_log_and_console("    ... " + str(len(list(e2.keys()))) + " cells are in '" + str(name2) + "'")
     if len(difference1) > 0:
         monitoring.to_log_and_console("    ... " + str(len(difference1)) + " cells are in '" + str(name1)
                                       + "' and not in '" + str(name2) + "'", 1)
@@ -1219,8 +1219,8 @@ def _compare_contact(e1, e2, name1, name2, description):
             if len(d) > 0:
                 s = "cell #" + str(k) + "has different contacts in '" + str(name1) + "' and '" + str(name2) + "'"
                 monitoring.to_log_and_console("        " + s, 1)
-                monitoring.to_log_and_console("        " + str(e1[k].keys()), 1)
-                monitoring.to_log_and_console("        " + "<-> " + str(e2[k].keys()), 1)
+                monitoring.to_log_and_console("        " + str(list(e1[k].keys())), 1)
+                monitoring.to_log_and_console("        " + "<-> " + str(list(e2[k].keys())), 1)
 
             if len(i) > 0:
                 for c in i:
@@ -1539,11 +1539,11 @@ class DiagnosisParameters(object):
 def _get_nodes(properties, key):
     if key == 'cell_lineage' or key == 'cell_contact_surface':
         d = properties[key]
-        nodes = list(set(d.keys()).union(set([v for values in d.values() for v in values])))
+        nodes = list(set(d.keys()).union(set([v for values in list(d.values()) for v in values])))
         return nodes
     if key == 'cell_volume' or key == 'cell_surface' or key == 'cell_compactness' or key == 'cell_barycenter' or \
         key == 'cell_principal_values' or key == 'cell_names' or key == 'cell_principal_vectors':
-        return properties[key].keys()
+        return list(properties[key].keys())
     if key == 'all_cells':
         return properties[key]
     return None
@@ -1567,7 +1567,7 @@ def _diagnosis_lineage(direct_lineage, description, time_digits_for_cell_id=4):
     #
     # get cells without daughters, remove cells from the last time point
     #
-    direct_nodes = list(set(direct_lineage.keys()).union(set([v for values in direct_lineage.values() for v in values])))
+    direct_nodes = list(set(direct_lineage.keys()).union(set([v for values in list(direct_lineage.values()) for v in values])))
     leaves = set(direct_nodes) - set(direct_lineage.keys())
     early_leaves = [leave for leave in leaves if (leave/10**time_digits_for_cell_id) < last_time]
 
@@ -1592,7 +1592,7 @@ def _diagnosis_lineage(direct_lineage, description, time_digits_for_cell_id=4):
     # build a reverse lineage
     #
     reverse_lineage = {}
-    for k, values in direct_lineage.iteritems():
+    for k, values in direct_lineage.items():
         for v in values:
             if v not in reverse_lineage:
                 reverse_lineage[v] = [k]
@@ -1630,7 +1630,7 @@ def _diagnosis_lineage(direct_lineage, description, time_digits_for_cell_id=4):
     #
     # get cells without mother, remove cells from the first time point
     #
-    reverse_nodes = list(set(reverse_lineage.keys()).union(set([v for values in reverse_lineage.values() for v in values])))
+    reverse_nodes = list(set(reverse_lineage.keys()).union(set([v for values in list(reverse_lineage.values()) for v in values])))
     orphans = set(reverse_nodes) - set(reverse_lineage.keys())
     late_orphans = [orphan for orphan in orphans if (orphan / 10 ** time_digits_for_cell_id) > first_time]
 
@@ -1714,7 +1714,7 @@ def _diagnosis_volume(dictionary, description, diagnosis_parameters=None, time_d
         n = int(diagnosis_parameters.items)
         v = int(diagnosis_parameters.minimal_volume)
 
-    for i in range(len(dictionary.keys())):
+    for i in range(len(list(dictionary.keys()))):
         if (n > 0 and i < n) or (v > 0 and int(volume[i][1]) <= v):
             s = _decode_cell_id(volume[i][0]) + " has volume = " + str(volume[i][1])
             monitoring.to_log_and_console("        " + s, 1)
@@ -1774,11 +1774,11 @@ def _diagnosis_name(name, lineage, description, time_digits_for_cell_id=4, verbo
 
     monitoring.to_log_and_console("  === " + str(description) + " diagnosis === ", 1)
 
-    reverse_lineage = {v: k for k, values in lineage.iteritems() for v in values}
+    reverse_lineage = {v: k for k, values in lineage.items() for v in values}
 
     div = 10 ** time_digits_for_cell_id
 
-    cells = list(set(lineage.keys()).union(set([v for values in lineage.values() for v in values])))
+    cells = list(set(lineage.keys()).union(set([v for values in list(lineage.values()) for v in values])))
     cells = sorted(cells)
 
     cells_per_time = {}
@@ -1923,7 +1923,7 @@ def diagnosis(d, features, diagnosis_parameters, time_digits_for_cell_id=4):
     # get nodes (ie cells) for each property
     # remove background
     nodes = {}
-    for k in d.keys():
+    for k in list(d.keys()):
         nodes[k] = _get_nodes(d, k)
         if nodes[k] is None:
             del nodes[k]
@@ -2012,8 +2012,8 @@ def diagnosis(d, features, diagnosis_parameters, time_digits_for_cell_id=4):
 
             outk = keydictionary[f]['output_key']
 
-            for i in range(len(d.keys())):
-                if d.keys()[i] == outk:
+            for i in range(len(list(d.keys()))):
+                if list(d.keys())[i] == outk:
                     if outk == keydictionary['lineage']['output_key']:
                         _diagnosis_lineage(d[outk], outk)
                     elif outk == keydictionary['h_min']['output_key']:
@@ -2102,7 +2102,7 @@ def check_volume_lineage(d, time_digits_for_cell_id=4):
     # check whether cells in volume dictionary are in lineage and vice-versa
     #
     if dict_volume is not {}:
-        all_nodes = list(set(direct_lineage.keys()).union(set([v for values in direct_lineage.values()
+        all_nodes = list(set(direct_lineage.keys()).union(set([v for values in list(direct_lineage.values())
                                                                for v in values])))
         nodes = [c for c in all_nodes if _cell_id(c, time_digits_for_cell_id) != 1]
         #
@@ -2162,9 +2162,9 @@ def check_volume_image(volume_from_lineage, image_name, current_time, time_digit
     del readim
 
     labels_from_image = [current_time * 10 ** time_digits_for_cell_id + int(label) for label in labels_from_image]
-    volume_from_image = dict(zip(labels_from_image, volume))
+    volume_from_image = dict(list(zip(labels_from_image, volume)))
 
-    labels_from_lineage = [label for label in volume_from_lineage.keys()
+    labels_from_lineage = [label for label in list(volume_from_lineage.keys())
                            if label/10 ** time_digits_for_cell_id == current_time]
 
     labels_in_lineage_not_in_image = list(set(labels_from_lineage).difference(set(labels_from_image)))
@@ -2200,7 +2200,7 @@ def check_volume_image(volume_from_lineage, image_name, current_time, time_digit
 ########################################################################################
 
 def _find_fate(cell_fate, name):
-    for n, v in cell_fate.iteritems():
+    for n, v in cell_fate.items():
         if name[:-1] in v[0]:
             return n
     return None
@@ -2333,8 +2333,8 @@ def set_fate_from_names(d, fate=4, time_digits_for_cell_id=4):
     #
     # forward propagation
     #
-    reverse_lineage = {v: k for k, values in d['cell_lineage'].iteritems() for v in values}
-    cells = list(set(d['cell_lineage'].keys()).union(set([v for values in d['cell_lineage'].values() for v in values])))
+    reverse_lineage = {v: k for k, values in d['cell_lineage'].items() for v in values}
+    cells = list(set(d['cell_lineage'].keys()).union(set([v for values in list(d['cell_lineage'].values()) for v in values])))
     cells = sorted(cells)
     div = 10 ** time_digits_for_cell_id
 
@@ -2563,16 +2563,16 @@ def print_type(d, t=None, desc=None):
 
     if type(d) is dict:
 
-        print "type of " + desc + " is " + str(t) + str(type(d))
+        print("type of " + desc + " is " + str(t) + str(type(d)))
         for k in d:
             print_type(d[k], t + str(type(d)) + ".", desc + "." + str(k))
 
     elif type(d) in (list, np.array, np.ndarray):
-        print "type of " + desc + " is " + str(t) + str(type(d))
+        print("type of " + desc + " is " + str(t) + str(type(d)))
         print_type(d[0], t + str(type(d)) + ".", desc + "[0]")
 
     else:
-        print "type of " + desc + " is " + str(t) + str(type(d))
+        print("type of " + desc + " is " + str(t) + str(type(d)))
 
     return
 
@@ -2612,7 +2612,7 @@ def write_tlp_file(tlpfilename, dictionary):
     #
     # write nodes = lineage.keys() + lineage.values()
     #
-    nodes = set(lineage.keys()).union(set([v for values in lineage.values() for v in values]))
+    nodes = set(lineage.keys()).union(set([v for values in list(lineage.values()) for v in values]))
     f.write("(nodes ")
     for n in nodes:
         f.write(str(n) + " ")
@@ -2622,7 +2622,7 @@ def write_tlp_file(tlpfilename, dictionary):
     # write edges
     #
     count_edges = 0
-    for m, ds in lineage.iteritems():
+    for m, ds in lineage.items():
         count_edges += 1
         for d in ds:
             f.write("(edge " + str(count_edges) + " " + str(m) + " " + str(d) + ")\n")
@@ -2650,7 +2650,7 @@ def write_tlp_file(tlpfilename, dictionary):
         elif p == keydictionary['volume']['output_key'] or p == keydictionary['surface']['output_key'] \
                 or p == keydictionary['compactness']['output_key']:
             prop = dictionary[p]
-            default = np.median(prop.values())
+            default = np.median(list(prop.values()))
             f.write("(property 0 double \"" + str(p) + "\"\n")
             f.write("\t(default \"" + str(default) + "\" \"0\")\n")
             for node in nodes:

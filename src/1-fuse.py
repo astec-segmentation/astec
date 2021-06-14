@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/env python3
 
 import os
 import time
@@ -9,7 +9,6 @@ from argparse import ArgumentParser
 # local imports
 # add ASTEC subdirectory
 #
-
 
 import ASTEC.common as common
 import ASTEC.fusion as fusion
@@ -26,7 +25,7 @@ from ASTEC.CommunFunctions.cpp_wrapping import path_to_vt
 def _set_options(my_parser):
     proc = "_set_options"
     if not isinstance(my_parser, ArgumentParser):
-        print proc + ": argument is not of type ArgumentParser"
+        print(proc + ": argument is not of type ArgumentParser")
         return
     #
     # common parameters

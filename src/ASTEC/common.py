@@ -9,7 +9,7 @@ import getpass
 import shutil
 import itertools
 
-import CommunFunctions.cpp_wrapping as cpp_wrapping
+import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
 
 #
 #
@@ -673,7 +673,7 @@ class RawdataChannel(PrefixedParameter):
         if self._channel_id == 0:
             ext = ''
         else:
-            ext = '_CHANNEL' + str(self._channel_id)
+            ext = '_CHANNEL_' + str(self._channel_id)
 
         for line in self.doc['rawdata_overview'].splitlines():
             print('# ' + line)
@@ -728,8 +728,8 @@ class RawdataChannel(PrefixedParameter):
     #
     ############################################################
 
-    def update_from_parameters(self, channel_id, parameters):
-
+    def update_from_parameters(self, parameters):
+        channel_id = self._channel_id
         if hasattr(parameters, 'DIR_RAWDATA'):
             self._main_directory = getattr(parameters, 'DIR_RAWDATA')
         elif hasattr(parameters, 'DIR_RAWDATA_CHANNEL_' + str(channel_id)):
@@ -739,28 +739,28 @@ class RawdataChannel(PrefixedParameter):
             self.angle0_sub_directory = getattr(parameters, 'DIR_LEFTCAM_STACKZERO_CHANNEL_' + str(channel_id))
         elif hasattr(parameters, 'DIR_LEFTCAM_STACKZERO_CHANNEL' + str(channel_id)):
             self.angle0_sub_directory = getattr(parameters, 'DIR_LEFTCAM_STACKZERO_CHANNEL' + str(channel_id))
-        elif channel_id == 1 and hasattr(parameters, 'DIR_LEFTCAM_STACKZERO'):
+        elif hasattr(parameters, 'DIR_LEFTCAM_STACKZERO'):
             self.angle0_sub_directory = getattr(parameters, 'DIR_LEFTCAM_STACKZERO')
 
         if hasattr(parameters, 'DIR_RIGHTCAM_STACKZERO_CHANNEL_' + str(channel_id)):
             self.angle1_sub_directory = getattr(parameters, 'DIR_RIGHTCAM_STACKZERO_CHANNEL_' + str(channel_id))
         elif hasattr(parameters, 'DIR_RIGHTCAM_STACKZERO_CHANNEL' + str(channel_id)):
             self.angle1_sub_directory = getattr(parameters, 'DIR_RIGHTCAM_STACKZERO_CHANNEL' + str(channel_id))
-        elif channel_id == 1 and hasattr(parameters, 'DIR_RIGHTCAM_STACKZERO'):
+        elif hasattr(parameters, 'DIR_RIGHTCAM_STACKZERO'):
             self.angle1_sub_directory = getattr(parameters, 'DIR_RIGHTCAM_STACKZERO')
 
         if hasattr(parameters, 'DIR_LEFTCAM_STACKONE_CHANNEL_' + str(channel_id)):
             self.angle2_sub_directory = getattr(parameters, 'DIR_LEFTCAM_STACKONE_CHANNEL_' + str(channel_id))
         elif hasattr(parameters, 'DIR_LEFTCAM_STACKONE_CHANNEL' + str(channel_id)):
             self.angle2_sub_directory = getattr(parameters, 'DIR_LEFTCAM_STACKONE_CHANNEL' + str(channel_id))
-        elif channel_id == 1 and hasattr(parameters, 'DIR_LEFTCAM_STACKONE'):
+        elif hasattr(parameters, 'DIR_LEFTCAM_STACKONE'):
             self.angle2_sub_directory = getattr(parameters, 'DIR_LEFTCAM_STACKONE')
 
         if hasattr(parameters, 'DIR_RIGHTCAM_STACKONE_CHANNEL_' + str(channel_id)):
             self.angle3_sub_directory = getattr(parameters, 'DIR_RIGHTCAM_STACKONE_CHANNEL_' + str(channel_id))
         elif hasattr(parameters, 'DIR_RIGHTCAM_STACKONE_CHANNEL' + str(channel_id)):
             self.angle3_sub_directory = getattr(parameters, 'DIR_RIGHTCAM_STACKONE_CHANNEL' + str(channel_id))
-        elif channel_id == 1 and hasattr(parameters, 'DIR_RIGHTCAM_STACKONE'):
+        elif hasattr(parameters, 'DIR_RIGHTCAM_STACKONE'):
             self.angle3_sub_directory = getattr(parameters, 'DIR_RIGHTCAM_STACKONE')
 
         if hasattr(parameters, 'fusion_weighting'):
@@ -821,6 +821,16 @@ class RawdataChannel(PrefixedParameter):
     # misc
     #
     ############################################################
+
+    def compare_to_channel(self, c):
+        if self._main_directory != c._main_directory \
+            or (self.angle0_sub_directory != c.angle0_sub_directory \
+                 and self.angle1_sub_directory != c.angle1_sub_directory \
+                 and self.angle2_sub_directory != c.angle2_sub_directory \
+                 and self.angle3_sub_directory != c.angle3_sub_directory):
+            return
+        self.__init__(self._channel_id)
+        return
 
     def identical_sub_directories(self, c):
         if self.angle0_sub_directory != c.angle0_sub_directory \
@@ -913,7 +923,9 @@ class RawdataSubdirectory(object):
 
     def update_from_parameters(self, parameters):
         for i in range(self._n_max_channels):
-            self.channel[i].update_from_parameters(i+1, parameters)
+            self.channel[i].update_from_parameters(parameters)
+        for i in range(1,self._n_max_channels):
+            self.channel[i].compare_to_channel(self.channel[0])
         return
 
     ############################################################
@@ -2569,12 +2581,12 @@ def get_parameter_file(parameter_file):
     """
     if parameter_file is not None and os.path.isfile(parameter_file):
         return parameter_file
-    new_parameter_file = raw_input('   Provide the parameter file: ')
+    new_parameter_file = input('   Provide the parameter file: ')
     if new_parameter_file is None or new_parameter_file is '':
         print("getParameterFile: no parameter file. Exiting.")
         sys.exit(1)
-    if os.path.isfile(new_parameter_file) is not False:
-        print("getParameterFile: '"+new_parameter_file+"' is not a valid file. Exiting.")
+    if not os.path.isfile(new_parameter_file):
+        print("getParameterFile: '" + new_parameter_file + "' is not a valid file. Exiting.")
         sys.exit(1)
     return new_parameter_file
 
@@ -2601,7 +2613,7 @@ def _write_git_information(path, logfile, desc):
 
     pipe = subprocess.Popen("cd " + path + "; " + "pwd" + "; cd " + str(os.getcwd()),
                             shell=True, stdout=subprocess.PIPE).stdout
-    o = pipe.next()
+    o = (pipe.readline()).decode('utf-8')
     v = o.split('\n')
     logfile.write(str(v[0] + "\n"))
 
@@ -2623,7 +2635,7 @@ def _write_git_information(path, logfile, desc):
     elif len(stderrData) > 0:
         logfile.write("no a git repository?!\n")
     else:
-        v = stdoutData.split('\n')
+        v = (stdoutData.decode('utf8')).split('\n')
         logfile.write(str(v[0] + "\n"))
 
         logfile.write(str(desc) + " version: ")
@@ -2633,12 +2645,12 @@ def _write_git_information(path, logfile, desc):
         if len(stderrData) > 0:
             logfile.write("no version found\n")
         else:
-            v = stdoutData.split('\n')
+            v = (stdoutData.decode('utf8')).split('\n')
             logfile.write(str(v[0] + "\n"))
 
         pipe = subprocess.Popen("cd " + path + "; " + gitlog + "; cd " + str(os.getcwd()),
                                 shell=True, stdout=subprocess.PIPE).stdout
-        o = pipe.next()
+        o = (pipe.readline()).decode('utf-8')
         v = o.split('\n')
         logfile.write("#\t" + str(v[0] + "\n"))
 

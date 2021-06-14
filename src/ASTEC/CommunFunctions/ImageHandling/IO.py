@@ -1,21 +1,14 @@
 from os.path import exists, splitext, split as psplit, expanduser as expusr
-import os, fnmatch
+import os
 
-# from scipy.misc import imsave as _imsave
-# this is not used (GM)
-from struct import pack,unpack,calcsize
-from pickle import dumps,loads
-import numpy as np
-
-from spatial_image import SpatialImage
-
-from inrimage import read_inrimage, write_inrimage
-from metaimage import read_metaimage, write_metaimage
-from tif import read_tif, write_tif
-from h5 import read_h5
+from .spatial_image import SpatialImage
+from .inrimage import read_inrimage, write_inrimage
+from .metaimage import read_metaimage, write_metaimage
+from .tif import read_tif, write_tif
+from .h5 import read_h5
 
 
-def imread (filename, dimension=3) :
+def imread(filename):
     """Reads an image file completely into memory.
 
     It uses the file extension to determine how to read the file. It first tries
@@ -31,18 +24,18 @@ def imread (filename, dimension=3) :
     :Returns Type:
         |SpatialImage|
     """
-    program='imread'
+    proc = 'imread'
     filename = expusr(filename)
 
     if not os.path.isfile(filename) and os.path.isfile(filename+".gz"):
-        filename=filename+".gz"
-        print "%s: Warning: path to read image has been changed to %s."%(program,filename)
+        filename = filename + ".gz"
+        print(proc + ": Warning: path to read image has been changed to " + filename + ".")
 
     if not os.path.isfile(filename) and os.path.isfile(filename+".zip"):
-        filename=filename+".zip"
-        print "%s: Warning: path to read image has been changed to %s."%(program,filename)
+        filename = filename + ".zip"
+        print(proc + ": Warning: path to read image has been changed to " + filename + ".")
 
-    if not exists(filename) :
+    if not exists(filename):
         raise IOError("The requested file do not exist: %s" % filename)
 
     root, ext = splitext(filename)
@@ -52,14 +45,15 @@ def imread (filename, dimension=3) :
         ext = ext.lower()
     if ext == ".inr":
         return read_inrimage(filename)
-    if ext == ".mha":
+    elif ext == ".mha":
         return read_metaimage(filename)
     elif ext in [".tif", ".tiff"]:
         return read_tif(filename)
-    elif ext in [".npz", ".npy"]:
-        return load(filename)
     elif ext in [".h5", ".hdf5"]:
         return read_h5(filename)
+    else:
+        raise IOError("Such image extension not handled yet: %s" % filename)
+
 
 def imsave(filename, img):
     """Save a |SpatialImage| to filename.
@@ -88,16 +82,15 @@ def imsave(filename, img):
 
     root, ext = splitext(filename)
 
-    is2D = img.shape[2] == 1
     ext = ext.lower()
     if ext == ".gz":
         root, ext = splitext(root)
         ext = ext.lower()
     if ext == ".inr":
         write_inrimage(filename, img)
-    if ext == ".mha":
+    elif ext == ".mha":
         write_metaimage(filename, img)
-    elif ext in [".npz", ".npy"]:
-        save(filename, img)
     elif ext in [".tiff", ".tif"]:
         write_tif(filename, img)
+    else:
+        raise IOError("Such image extension not handled yet: %s" % filename)

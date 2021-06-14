@@ -4,9 +4,9 @@ import shutil
 import sys
 import time
 
-import common
-from CommunFunctions.ImageHandling import imread
-import CommunFunctions.cpp_wrapping as cpp_wrapping
+import ASTEC.common as common
+from ASTEC.CommunFunctions.ImageHandling import imread
+import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
 
 #
 #

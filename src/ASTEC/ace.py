@@ -5,11 +5,9 @@ import imp
 import operator
 import multiprocessing
 
-import common
-
-from CommunFunctions.ImageHandling import imread
-import CommunFunctions.cpp_wrapping as cpp_wrapping
-
+import ASTEC.common as common
+from ASTEC.CommunFunctions.ImageHandling import imread
+import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
 
 #
 #
@@ -278,7 +276,7 @@ class AceParameters(common.PrefixedParameter):
         if parameter_file is None:
             return
         if not os.path.isfile(parameter_file):
-            print ("Error: '" + parameter_file + "' is not a valid file. Exiting.")
+            print("Error: '" + parameter_file + "' is not a valid file. Exiting.")
             sys.exit(1)
 
         parameters = imp.load_source('*', parameter_file)
@@ -561,7 +559,7 @@ def cell_binarization(parameters_for_parallelism):
                            monitoring=monitoring)
 
     immask = imread(cell_mask)
-    voxelsize = immask._get_resolution()
+    voxelsize = immask.voxelsize
     del immask
 
     #
@@ -717,7 +715,7 @@ def cell_membrane_enhancement(path_input, previous_deformed_segmentation, path_o
     if parameters.bounding_box_dilation > 0:
 
         imseg = imread(previous_deformed_segmentation)
-        voxelsize = imseg._get_resolution()
+        voxelsize = imseg.voxelsize
         xdim = imseg.shape[0]
         ydim = imseg.shape[1]
         zdim = imseg.shape[2]
@@ -735,8 +733,8 @@ def cell_membrane_enhancement(path_input, previous_deformed_segmentation, path_o
 
         dilation_operator = (0, -dx, -dy, -dz, dx, dy, dz)
 
-        for x, b in bboxes.iteritems():
-            b = map(operator.add, b, dilation_operator)
+        for x, b in bboxes.items():
+            b = list(map(operator.add, b, dilation_operator))
             #
             # Note of Gael:
             # the coordinates of the "final" point of the bounding box can "go" out of the original image dimensions
@@ -961,22 +959,22 @@ def light_LACE(parameters):
         if os.path.exists(path_mask_dil):
             cmd='rm ' + str(path_mask_dil)
             if verbose:
-                print cmd
+                print(cmd)
             os.system(cmd)
         if os.path.exists(path_ext_tmp):
             cmd='rm ' + str(path_ext_tmp)
             if verbose:
-                print cmd
+                print(cmd)
             os.system(cmd)
         if os.path.exists(path_theta_tmp):
             cmd='rm ' + str(path_theta_tmp)
             if verbose:
-                print cmd
+                print(cmd)
             os.system(cmd)
         if os.path.exists(path_phi_tmp):
             cmd='rm ' + str(path_phi_tmp)
             if verbose:
-                print cmd
+                print(cmd)
             os.system(cmd)
 
     return path_bin
@@ -1145,40 +1143,40 @@ def LACE(path_fused_0, path_fused_1, path_seg_0, label_of_interest, path_membran
 
     # Verbose for files
     if verbose:
-        print "Temporary files:"
-        print path_affine_trsf
+        print("Temporary files:")
+        print(path_affine_trsf)
         if not keep_vector:
-            print path_vector
-        print path_mask
+            print(path_vector)
+        print(path_mask)
         if not keep_membrane:
             if keep_tmp_bin:
-                print path_membrane_prefix+".[ext|theta|phi].inr"
+                print(path_membrane_prefix+".[ext|theta|phi].inr")
             else:
-                print path_membrane_prefix+".[bin|ext|theta|phi].inr"
+                print(path_membrane_prefix+".[bin|ext|theta|phi].inr")
         else:
             if not keep_tmp_bin:
-                print path_membrane_prefix+".bin.inr"
+                print(path_membrane_prefix+".bin.inr")
         if not keep_hist and not hard_thresholding:
-            print path_membrane_prefix+".hist.txt"
-        print path_TV
+            print(path_membrane_prefix+".hist.txt")
+        print(path_TV)
     if verbose and (keep_vector or path_output):
-        print "Output files:"
+        print("Output files:")
         if keep_vector:
-            print path_vector
+            print(path_vector)
         if keep_membrane:
             if keep_tmp_bin:
-                print path_membrane_prefix+".[ext|theta|phi].inr"
+                print(path_membrane_prefix+".[ext|theta|phi].inr")
             else:
-                print path_membrane_prefix+".[bin|ext|theta|phi].inr"
+                print(path_membrane_prefix+".[bin|ext|theta|phi].inr")
         else:
             if keep_tmp_bin:
-                print path_membrane_prefix+".bin.inr"
+                print(path_membrane_prefix+".bin.inr")
         if keep_hist and not hard_thresholding:
-            print path_membrane_prefix+".hist.txt"
+            print(path_membrane_prefix+".hist.txt")
         if path_bin and path_bin != path_membrane_prefix+".bin.inr":
-            print path_bin
+            print(path_bin)
         if path_output:
-            print path_output
+            print(path_output)
 
 
     ### Output path ###
@@ -1186,7 +1184,7 @@ def LACE(path_fused_0, path_fused_1, path_seg_0, label_of_interest, path_membran
         try:
             os.mkdir(path_WORK)
         except Exception :
-            print "Unexpected error: unable to create working directory"
+            print("Unexpected error: unable to create working directory")
 
     ### Stuff ###
 
@@ -1211,7 +1209,7 @@ def LACE(path_fused_0, path_fused_1, path_seg_0, label_of_interest, path_membran
         if path_mask_dil and os.path.exists(path_mask_dil):
             cmd='rm ' + path_mask_dil
             if verbose:
-                print cmd
+                print(cmd)
             os.system(cmd)
 
 
@@ -1221,7 +1219,7 @@ def LACE(path_fused_0, path_fused_1, path_seg_0, label_of_interest, path_membran
     parameters=(path_mask, label_of_interest, None, path_membrane_prefix, path_bin, rayon_dil, manual, manual_sigma, hard_thresholding, hard_threshold, sensitivity, verbose)
 
     if verbose:
-        print 'Running light_LACE(' + str(parameters) + ') ...'
+        print('Running light_LACE(' + str(parameters) + ') ...')
 
     path_bin=light_LACE(parameters)
 
@@ -1271,7 +1269,7 @@ def LACE(path_fused_0, path_fused_1, path_seg_0, label_of_interest, path_membran
 
     if files_to_rm and not _instrumented_:
         if verbose:
-            print "Deleting temporary files: \n" + files_to_rm
+            print("Deleting temporary files: \n" + files_to_rm)
         os.system("rm " + files_to_rm)
 
     # End of LACE
@@ -1484,7 +1482,7 @@ def GLACE(path_fused_0, path_fused_1, path_seg_0, labels_of_interest='all', back
         try:
             os.mkdir(path_WORK)
         except Exception :
-            print "Unexpected error: unable to create working directory"
+            print("Unexpected error: unable to create working directory")
 
     rayon_dil_voxel=None
 
@@ -1509,7 +1507,7 @@ def GLACE(path_fused_0, path_fused_1, path_seg_0, labels_of_interest='all', back
         files_to_rm += path_vector + ' '
     if files_to_rm and not _instrumented_:
         if verbose:
-            print "Deleting temporary files: \n" + files_to_rm
+            print("Deleting temporary files: \n" + files_to_rm)
         os.system("rm " + files_to_rm)
 
     # GLACE_from_resampled_segmentation for the steps 2 to 4:
@@ -1517,17 +1515,17 @@ def GLACE(path_fused_0, path_fused_1, path_seg_0, labels_of_interest='all', back
     # - light_LACE call for each ROI
     # - Union of binarised image patches
     # - tensor voting process (GACE)
-    print "\n##################################################################### \
+    print("\n##################################################################### \
            \n############# Calling GLACE_from_resampled_segmentation ############# \
-           \n##################################################################### \n"
+           \n##################################################################### \n")
 
     GLACE_from_resampled_segmentation(path_fused_1, path_seg_trsf, labels_of_interest=labels_of_interest, background=background, path_membrane_prefix=path_membrane_prefix, path_bin=path_bin, path_output=path_output, rayon_dil=rayon_dil,
     sigma_membrane=sigma_membrane, manual=manual, manual_sigma=manual_sigma, hard_thresholding=hard_thresholding, hard_threshold=hard_threshold, sensitivity=sensitivity, sigma_TV=sigma_TV, sigma_LF=sigma_LF, sample=sample,
     keep_membrane=True, keep_all=keep_all,  nb_proc=nb_proc, verbose=verbose)
 
-    print "\n################################################ \
+    print("\n################################################ \
            \n############# Back to GLACE method ############# \
-           \n################################################ \n"
+           \n################################################ \n")
 
     reconstructed_image_1=imread(path_output)
 
@@ -1553,7 +1551,7 @@ def GLACE(path_fused_0, path_fused_1, path_seg_0, labels_of_interest='all', back
 
     if files_to_rm and not _instrumented_:
         if verbose:
-            print "Deleting temporary files: \n" + files_to_rm
+            print("Deleting temporary files: \n" + files_to_rm)
         os.system("rm " + files_to_rm)
 
     return reconstructed_image_1
@@ -1702,7 +1700,7 @@ def GLACE_from_resampled_segmentation(path_fused_1, path_seg_trsf, labels_of_int
         try:
             os.mkdir(path_WORK)
         except Exception :
-            print "Unexpected error: unable to create working directory"
+            print("Unexpected error: unable to create working directory")
 
 
     # First step
@@ -1722,8 +1720,8 @@ def GLACE_from_resampled_segmentation(path_fused_1, path_seg_trsf, labels_of_int
         rayon_dil_voxel = int(rayon_dil_voxel+0.5)
         dilation_tuple = (0, -rayon_dil_voxel, -rayon_dil_voxel, -rayon_dil_voxel, rayon_dil_voxel, rayon_dil_voxel, rayon_dil_voxel)
         import operator
-        for x, b in bboxes.iteritems():
-            b=map(operator.add, b, dilation_tuple)
+        for x, b in bboxes.items():
+            b=list(map(operator.add, b, dilation_tuple))
             if b[1] < 0:	# origin in x >= 0
                 b[1] = 0
             if b[2] < 0:	# origin in y >= 0
@@ -1748,7 +1746,7 @@ def GLACE_from_resampled_segmentation(path_fused_1, path_seg_trsf, labels_of_int
             rayon_dil, manual, manual_sigma, hard_thresholding, hard_threshold, sensitivity, \
             verbose)
         if verbose:
-            print 'Running light_LACE(' + str(parameters) + ') ...'
+            print('Running light_LACE(' + str(parameters) + ') ...')
 
         mapping.append(parameters)
 
@@ -1767,7 +1765,7 @@ def GLACE_from_resampled_segmentation(path_fused_1, path_seg_trsf, labels_of_int
         cpp_wrapping.obsolete_patchLogic(path_local_bin, path_union_of_local_bins, path_union_of_local_bins, bbox, Mode='or', verbose=verbose)
         if not keep_all:
             cmd='rm ' + path_local_bin
-            print cmd
+            print(cmd)
             os.system(cmd)
 
     keep_union_of_local_bins=False
@@ -1803,7 +1801,7 @@ def GLACE_from_resampled_segmentation(path_fused_1, path_seg_trsf, labels_of_int
 
     if files_to_rm and not _instrumented_:
         if verbose:
-            print "Deleting temporary files: \n" + files_to_rm
+            print("Deleting temporary files: \n" + files_to_rm)
         os.system("rm " + files_to_rm)
 
 ########################################################################################
@@ -1934,28 +1932,28 @@ def GACE(path_input, binary_input=False, path_membrane_prefix=None, path_bin=Non
         keep_tmp_bin = path_bin and (path_bin != path_membrane_prefix + '.bin.inr')
 
     if verbose:
-        print "Temporary files:"
+        print("Temporary files:")
         if binary_input:
-            print path_TV
+            print(path_TV)
         else:
             if keep_membrane:
-                print path_membrane_prefix + ".bin.inr"
+                print(path_membrane_prefix + ".bin.inr")
             else:
-                print path_membrane_prefix + ".[bin|ext|theta|phi].inr"
+                print(path_membrane_prefix + ".[bin|ext|theta|phi].inr")
             if not hard_thresholding:
-                print path_membrane_prefix + ".hist.txt"
-            print path_TV
+                print(path_membrane_prefix + ".hist.txt")
+            print(path_TV)
     if verbose and path_output:
-        print "Output file:"
+        print("Output file:")
         if path_output:
-            print path_output
+            print(path_output)
 
     ### Output path ###
     if not os.path.isdir(path_WORK):
         try:
             os.mkdir(path_WORK)
         except Exception:
-            print "Unexpected error: unable to create working directory"
+            print("Unexpected error: unable to create working directory")
 
     ### Stuff ###
     keepAll = False
@@ -1997,7 +1995,7 @@ def GACE(path_input, binary_input=False, path_membrane_prefix=None, path_bin=Non
 
     # Tensor voting on the image of binarized membranes
     if verbose:
-        print 'Processing Tensor Voting on image ' + path_tv_input + ' ...'
+        print('Processing Tensor Voting on image ' + path_tv_input + ' ...')
     assert (os.path.exists(path_tv_input))
     assert (path_tv_input.endswith('.inr.gz') or path_tv_input.endswith('.inr'))
     binary_file_decomp = path_tv_input.split('.')
@@ -2052,7 +2050,7 @@ def GACE(path_input, binary_input=False, path_membrane_prefix=None, path_bin=Non
 
     if files_to_rm and not _instrumented_:
         if verbose:
-            print "Deleting temporary files: \n" + files_to_rm
+            print("Deleting temporary files: \n" + files_to_rm)
         os.system("rm " + files_to_rm)
 
     # End of GACE
@@ -2181,28 +2179,28 @@ def _GACE(path_input, binary_input=False, path_membrane_prefix=None, path_bin=No
         keep_tmp_bin = path_bin and (path_bin != path_membrane_prefix + '.bin.inr')
 
     if verbose:
-        print "Temporary files:"
+        print("Temporary files:")
         if binary_input:
-            print path_TV
+            print(path_TV)
         else:
             if keep_membrane:
-                print path_membrane_prefix + ".bin.inr"
+                print(path_membrane_prefix + ".bin.inr")
             else:
-                print path_membrane_prefix + ".[bin|ext|theta|phi].inr"
+                print(path_membrane_prefix + ".[bin|ext|theta|phi].inr")
             if not hard_thresholding:
-                print path_membrane_prefix + ".hist.txt"
-            print path_TV
+                print(path_membrane_prefix + ".hist.txt")
+            print(path_TV)
     if verbose and path_output:
-        print "Output file:"
+        print("Output file:")
         if path_output:
-            print path_output
+            print(path_output)
 
     ### Output path ###
     if not os.path.isdir(path_WORK):
         try:
             os.mkdir(path_WORK)
         except Exception:
-            print "Unexpected error: unable to create working directory"
+            print("Unexpected error: unable to create working directory")
 
     ### Stuff ###
 
@@ -2240,7 +2238,7 @@ def _GACE(path_input, binary_input=False, path_membrane_prefix=None, path_bin=No
 
     # Tensor voting on the image of binarized membranes
     if verbose:
-        print 'Processing Tensor Voting on image ' + path_tv_input + ' ...'
+        print('Processing Tensor Voting on image ' + path_tv_input + ' ...')
     assert (os.path.exists(path_tv_input))
     assert (path_tv_input.endswith('.inr.gz') or path_tv_input.endswith('.inr'))
     binary_file_decomp = path_tv_input.split('.')
@@ -2295,7 +2293,7 @@ def _GACE(path_input, binary_input=False, path_membrane_prefix=None, path_bin=No
 
     if files_to_rm and not _instrumented_:
         if verbose:
-            print "Deleting temporary files: \n" + files_to_rm
+            print("Deleting temporary files: \n" + files_to_rm)
         os.system("rm " + files_to_rm)
 
     # End of GACE

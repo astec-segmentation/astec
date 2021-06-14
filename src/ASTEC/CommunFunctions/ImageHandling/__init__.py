@@ -1,3 +1,3 @@
 
-from IO import imread, imsave
-from spatial_image import SpatialImage
+from ASTEC.CommunFunctions.ImageHandling.IO import imread, imsave
+from ASTEC.CommunFunctions.ImageHandling.spatial_image import SpatialImage

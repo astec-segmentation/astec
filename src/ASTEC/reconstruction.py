@@ -2,9 +2,9 @@ import os
 import imp
 import sys
 
-import ace
-import common
-import CommunFunctions.cpp_wrapping as cpp_wrapping
+import ASTEC.common as common
+import ASTEC.ace as ace
+import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
 
 monitoring = common.Monitoring()
 

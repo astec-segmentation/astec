@@ -1,7 +1,6 @@
-#!/usr/bin/python2.7
+#!/usr/bin/env python3
 
 import os
-import cPickle as pkl
 import time
 import sys
 
@@ -26,7 +25,7 @@ from ASTEC.CommunFunctions.cpp_wrapping import path_to_vt
 def _set_options(my_parser):
     proc = "_set_options"
     if not isinstance(my_parser, ArgumentParser):
-        print proc + ": argument is not of type ArgumentParser"
+        print(proc + ": argument is not of type ArgumentParser")
         return
     #
     # common parameters
@@ -335,7 +334,7 @@ if __name__ == '__main__':
             if args.print_content is True:
                 properties.print_keys(comparedict, desc="dictionary to be compared with")
             if comparedict == {}:
-                print "error: empty dictionary to be compared with"
+                print("error: empty dictionary to be compared with")
             else:
                 properties.comparison(inputdict, comparedict, args.outputFeatures, 'input entry', 'compared entry')
 
@@ -361,16 +360,16 @@ if __name__ == '__main__':
 
             for feature in args.outputFeatures:
 
-                # print "search feature '" + str(feature) + "'"
+                # print("search feature '" + str(feature) + "'")
                 target_key = properties.keydictionary[feature]
 
                 for searchedkey in target_key['input_keys']:
                     if searchedkey in inputdict:
-                        # print "found feature '" + str(ok) + "'"
+                        # print("found feature '" + str(ok) + "'")
                         outputdict[target_key['output_key']] = inputdict[searchedkey]
                         break
                 else:
-                    print "error: feature '" + str(feature) + "' not found in dictionary"
+                    print("error: feature '" + str(feature) + "' not found in dictionary")
 
         else:
 
@@ -378,7 +377,7 @@ if __name__ == '__main__':
             # copy dictionary
             #
 
-            # print "copy dictionary"
+            # print("copy dictionary")
             if args.old_keys is True:
                 outputdict = {}
                 for inputkey in inputdict:
@@ -400,7 +399,7 @@ if __name__ == '__main__':
                 outputdict = inputdict
 
         if outputdict == {}:
-            print "error: empty input dictionary ?! ... exiting"
+            print("error: empty input dictionary ?! ... exiting")
             sys.exit()
 
         #
@@ -409,10 +408,10 @@ if __name__ == '__main__':
 
         if args.outputFiles is None:
             pass
-            # print "error: no output file(s)"
+            # print("error: no output file(s)")
         else:
             for ofile in args.outputFiles:
-                print "... writing '" + str(ofile) + "'"
+                print("... writing '" + str(ofile) + "'")
                 properties.write_dictionary(ofile, outputdict)
 
         if args.extract_selection:

@@ -8,10 +8,10 @@ import numpy as np
 
 from scipy.stats.stats import pearsonr
 
-import common
-import properties as properties
-import CommunFunctions.cpp_wrapping as cpp_wrapping
-from CommunFunctions.ImageHandling import imread, imsave, SpatialImage
+import ASTEC.common as common
+import ASTEC.properties as properties
+from ASTEC.CommunFunctions.ImageHandling import imread, imsave, SpatialImage
+import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
 
 #
 #
@@ -316,10 +316,10 @@ def _map_cell_fusion(astec_image, post_image, current_time, cells_to_be_fused, t
     # build a mapping
     #
     im = imread(astec_image)
-    mapping = range(np.max(im) + 1)
+    mapping = list(range(np.max(im) + 1))
     for new, old in labels_to_be_fused:
-        newlabel = new % 10 ** time_digits_for_cell_id
-        oldlabel = old % 10 ** time_digits_for_cell_id
+        newlabel = int(new % 10 ** time_digits_for_cell_id)
+        oldlabel = int(old % 10 ** time_digits_for_cell_id)
         mapping = [newlabel if i == oldlabel else i for i in mapping]
     #
     # after list comprehensions, mapping is of type list
@@ -366,7 +366,7 @@ def _test_early_division(direct_lineage, reverse_lineage, division_cell, cell, l
     # the sister branch is too short (and ends before the end of the sequence)
     #
     if len(sister_branch) < lifespan_minimal_value \
-            and sister_branch[-1] / 10 ** time_digits_for_cell_id != last_time_point:
+            and int(sister_branch[-1] / 10 ** time_digits_for_cell_id) != last_time_point:
         if _instrumented_:
             monitoring.to_log_and_console(str(proc) + ": true because of sister length")
         return True
@@ -388,7 +388,7 @@ def _test_early_division(direct_lineage, reverse_lineage, division_cell, cell, l
     # the mother branch is too short (and begins after the beginning of the sequence)
     #
     if len(mother_branch) < lifespan_minimal_value \
-            and mother_branch[-1] / 10 ** time_digits_for_cell_id != first_time_point:
+            and int(mother_branch[-1] / 10 ** time_digits_for_cell_id) != first_time_point:
         if _instrumented_:
             monitoring.to_log_and_console(str(proc) + ": true because of mother length")
         return True
@@ -466,17 +466,17 @@ def _get_leaves(direct_lineage, reverse_lineage, volume, experiment, parameters)
     # leaves are nodes without lineage
     # get the largest time point value (last leaves)
     #
-    nodes = list(set(direct_lineage.keys()).union(set([v for values in direct_lineage.values() for v in values])))
+    nodes = list(set(direct_lineage.keys()).union(set([v for values in list(direct_lineage.values()) for v in values])))
     leaves = set(nodes) - set(direct_lineage.keys())
-    last_time = max(leaves) / 10 ** time_digits_for_cell_id
-    first_time = min(set(direct_lineage.keys())) / 10 ** time_digits_for_cell_id
+    last_time = int(max(leaves) / 10 ** time_digits_for_cell_id)
+    first_time = int(min(set(direct_lineage.keys())) / 10 ** time_digits_for_cell_id)
 
     #
     # a branch (ended) by a leave is candidate for deletion if
     # - it ends before the last time point (so before the end of the series), or
     # - the volume of the leave cell is too small
     #
-    candidates_for_deletion = [leaf for leaf in leaves if (((leaf / 10 ** time_digits_for_cell_id) < last_time)
+    candidates_for_deletion = [leaf for leaf in leaves if ((int(leaf / 10 ** time_digits_for_cell_id) < last_time)
                                                            or (volume[leaf] < parameters.volume_minimal_value))]
 
     lengths = []
@@ -499,10 +499,10 @@ def _get_leaves(direct_lineage, reverse_lineage, volume, experiment, parameters)
         division_cell = reverse_lineage.get(branch[-1], '')
         division_cells.append(division_cell)
         if division_cell is not '':
-            division_times.append(division_cell / 10 ** time_digits_for_cell_id)
+            division_times.append(int(division_cell / 10 ** time_digits_for_cell_id))
         else:
             branch.reverse()
-            if branch[0] / 10 ** time_digits_for_cell_id > experiment.first_time_point:
+            if int(branch[0] / 10 ** time_digits_for_cell_id) > experiment.first_time_point:
                 if len(branch) <= 4:
                     monitoring.to_log_and_console("        ... found an orphan branch: " + str(branch), 3)
                 else:
@@ -513,7 +513,7 @@ def _get_leaves(direct_lineage, reverse_lineage, volume, experiment, parameters)
     #
     # branches is an array of tuples (#leaf_id, branch_length, #division_id)
     #
-    branches = zip(candidates_for_deletion, lengths, division_cells, division_times)
+    branches = list(zip(candidates_for_deletion, lengths, division_cells, division_times))
     return branches
 
 
@@ -545,7 +545,7 @@ def _fuse_branch(lineage, volume, surfaces, labels_to_be_fused, division_cell, b
     sister_branch = []
 
     while True:
-        cell_time = branch[ibranch] / 10 ** time_digits_for_cell_id
+        cell_time = int(branch[ibranch] / 10 ** time_digits_for_cell_id)
         labels_to_be_fused.setdefault(cell_time, []).append((progeny[iprogeny], branch[ibranch]))
         sister_branch.append(progeny[iprogeny])
 
@@ -704,8 +704,8 @@ def _prune_lineage_tree(lineage, volume, surfaces, experiment, parameters):
     #
 
     time_digits_for_cell_id = experiment.get_time_digits_for_cell_id()
-    first_time = min(set(lineage.keys())) / 10 ** time_digits_for_cell_id
-    last_time = max(set([v for values in lineage.values() for v in values])) / 10 ** time_digits_for_cell_id
+    first_time = int(min(set(lineage.keys())) / 10 ** time_digits_for_cell_id)
+    last_time = int(max(set([v for values in list(lineage.values()) for v in values])) / 10 ** time_digits_for_cell_id)
 
     labels_to_be_fused = {}
     undeletable_leaves = set()
@@ -718,7 +718,7 @@ def _prune_lineage_tree(lineage, volume, surfaces, experiment, parameters):
     previous_iteration_division_time = last_time
     while True:
 
-        reverse_lineage = {v: k for k, values in lineage.iteritems() for v in values}
+        reverse_lineage = {v: k for k, values in lineage.items() for v in values}
 
         #
         # get branches that end before the last time point or
@@ -936,7 +936,7 @@ def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment
     time_digits_for_cell_id = experiment.get_time_digits_for_cell_id()
     postponed_divisions = 0
 
-    for c, scores in scores_window.iteritems():
+    for c, scores in scores_window.items():
         if (np.array(scores) < -parameters.postponing_correlation_threshold).all():
             first_size = len(scores) - 1
         else:
@@ -996,7 +996,7 @@ def _postpone_division(lineage, volume, surfaces, labels_to_be_fused, experiment
             #
             # fuse c0 and c1 -> c0 disappears
             #
-            cell_time = c0 / 10 ** time_digits_for_cell_id
+            cell_time = int(c0 / 10 ** time_digits_for_cell_id)
             labels_to_be_fused.setdefault(cell_time, []).append((c1, c0))
             sister0_branch.append(c0)
             sister1_branch.append(c1)

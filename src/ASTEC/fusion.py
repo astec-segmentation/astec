@@ -9,9 +9,9 @@ import subprocess
 import numpy as np
 from scipy import ndimage as nd
 
-import common
-from CommunFunctions.ImageHandling import SpatialImage, imread, imsave
-import CommunFunctions.cpp_wrapping as cpp_wrapping
+import ASTEC.common as common
+from ASTEC.CommunFunctions.ImageHandling import SpatialImage, imread, imsave
+import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
 
 
 #
@@ -444,14 +444,14 @@ class FusionParameters(common.PrefixedParameter):
                         self.acquisition_resolution = parameters.raw_resolution
                     else:
                         print("Error in reading parameters")
-                        print("\t 'raw_resolution' has length " + str(len(parameters.raw_resolution))
-                              + " instead of 3.")
+                        print("\t 'raw_resolution' has length " + str(len(parameters.raw_resolution)
+                              + " instead of 3."))
                         print("\t Exiting.")
                         sys.exit(1)
                 else:
                     print("Error in reading parameters")
-                    print("\t type of 'raw_resolution' (" + str(type(parameters.raw_resolution))
-                          + ") is not handled")
+                    print("\t type of 'raw_resolution' (" + str(type(parameters.raw_resolution)
+                          + ") is not handled"))
                     print("\t Exiting.")
                     sys.exit(1)
         elif hasattr(parameters, 'acquisition_resolution'):
@@ -461,14 +461,14 @@ class FusionParameters(common.PrefixedParameter):
                         self.acquisition_resolution = parameters.acquisition_resolution
                     else:
                         print("Error in reading parameters")
-                        print("\t 'acquisition_resolution' has length " + str(len(parameters.acquisition_resolution))
-                              + " instead of 3.")
+                        print("\t 'acquisition_resolution' has length " + str(len(parameters.acquisition_resolution)
+                              + " instead of 3."))
                         print("\t Exiting.")
                         sys.exit(1)
                 else:
                     print("Error in reading parameters")
-                    print("\t type of 'acquisition_resolution' (" + str(type(parameters.acquisition_resolution))
-                          + ") is not handled")
+                    print("\t type of 'acquisition_resolution' (" + str(type(parameters.acquisition_resolution)
+                          + ") is not handled"))
                     print("\t Exiting.")
                     sys.exit(1)
 
@@ -599,7 +599,6 @@ class FusionParameters(common.PrefixedParameter):
         self.update_from_parameters(parameters)
 
 
-
 ########################################################################################
 #
 # some internal procedures
@@ -722,15 +721,15 @@ def _read_image_name(data_path, temporary_path, file_name, resolution, default_e
                 monitoring.to_log_and_console("    .. converting '" + str(f) + "'", 2)
                 image = imread(full_name)
                 if type(resolution) is tuple and len(resolution) == 3:
-                    image.resolution = resolution
+                    image.voxelsize = resolution
                     monitoring.to_log("    * resolution of '" + full_name + "' has been set to "
-                                      + str(image.resolution))
+                                      + str(image.voxelsize))
                 elif type(resolution) is list and len(resolution) == 3:
-                    image.resolution = (resolution(0), resolution(1), resolution(2))
+                    image.voxelsize = (resolution(0), resolution(1), resolution(2))
                     monitoring.to_log("    * resolution of '" + full_name + "' has been set to "
-                                      + str(image.resolution))
+                                      + str(image.voxelsize))
                 else:
-                    monitoring.to_log("    * resolution of '" + full_name + "' is " + str(image.resolution)
+                    monitoring.to_log("    * resolution of '" + full_name + "' is " + str(image.voxelsize)
                                       + "(default/read values)")
                 #
                 # remove unzipped file to avoid having two files in the directory
@@ -767,11 +766,11 @@ def _read_image_name(data_path, temporary_path, file_name, resolution, default_e
             monitoring.to_log_and_console("    .. changing resolution '" + str(f) + "'", 2)
             image = imread(full_name)
             if type(resolution) is tuple and len(resolution) == 3:
-                image.resolution = resolution
-                monitoring.to_log("    * resolution of '" + full_name + "' has been set to " + str(image.resolution))
+                image.voxelsize = resolution
+                monitoring.to_log("    * resolution of '" + full_name + "' has been set to " + str(image.voxelsize))
             elif type(resolution) is list and len(resolution) == 3:
-                image.resolution = (resolution(0), resolution(1), resolution(2))
-                monitoring.to_log("    * resolution of '" + full_name + "' has been set to " + str(image.resolution))
+                image.voxelsize = (resolution(0), resolution(1), resolution(2))
+                monitoring.to_log("    * resolution of '" + full_name + "' has been set to " + str(image.voxelsize))
             imsave(full_name, image)
         else:
             monitoring.to_log("    * resolution of '" + full_name + "' is left unchanged")
@@ -804,15 +803,15 @@ def _analyze_data_directory(data_dir):
                 if e not in extensions:
                     extensions.append(e)
                     if len(extensions) > 1:
-                        print proc + ": several image extensions were found in '" + data_dir + "'"
-                        print "\t -> " + str(extensions)
-                        print "\t Exiting."
+                        print(proc + ": several image extensions were found in '" + data_dir + "'")
+                        print("\t -> " + str(extensions))
+                        print("\t Exiting.")
                         sys.exit(1)
                 images.append(f)
 
     if len(images) == 0:
-        print proc + ": no images were found in '" + data_dir + "'"
-        print "\t Exiting."
+        print(proc + ": no images were found in '" + data_dir + "'")
+        print("\t Exiting.")
         sys.exit(1)
 
     #
@@ -844,9 +843,9 @@ def _analyze_data_directory(data_dir):
 
     for i in range(1, len(images)):
         if len(images[0]) != len(images[i]):
-            print proc + ": image names are of different lengths in '" + data_dir + "'"
-            print "\t -> " + images[0] + ", " + images[i]
-            print "\t Exiting."
+            print(proc + ": image names are of different lengths in '" + data_dir + "'")
+            print("\t -> " + images[0] + ", " + images[i])
+            print("\t Exiting.")
             sys.exit(1)
 
     prefix = ''
@@ -921,13 +920,13 @@ def _crop_bounding_box(the_image):
     #
     labels = np.unique(cc_image)
     volumes = nd.sum(np.ones_like(cc_image), cc_image, index=np.int16(labels))
-    dict_volumes = dict(zip(labels, volumes))
+    dict_volumes = dict(list(zip(labels, volumes)))
 
     #
     # remove the background
     # then get the label associated to the largest connected component
     dict_volumes.pop(0)
-    max_label = dict_volumes.keys()[np.argmax(dict_volumes.values())]
+    max_label = list(dict_volumes.keys())[np.argmax(list(dict_volumes.values()))]
 
     #
     # get the bounding boxes for all objects
@@ -981,7 +980,7 @@ def _crop_disk_image(the_image, res_image, the_max_box=None,
                slice(0, image.shape[2]))
 
     new_image = SpatialImage(image[new_box])
-    new_image._set_resolution(image._get_resolution())
+    new_image.voxelsize = image.voxelsize
 
     imsave(res_image, new_image)
 
@@ -1119,7 +1118,7 @@ def _histogram(image, nbins=256):
 
     proc = "_histogram"
     if not isinstance(image, SpatialImage):
-        print proc + ": argument image is not an ndarray"
+        print(proc + ": argument image is not an ndarray")
         return
 
     # For integer types, histogramming with bincount is more efficient.
@@ -1162,7 +1161,7 @@ def _threshold_otsu(image, nbins=256):
 
     proc = "_threshold_otsu"
     if not isinstance(image, SpatialImage):
-        print proc + ": argument image is not an ndarray"
+        print(proc + ": argument image is not an ndarray")
         return
 
     hist, bin_centers = _histogram(image, nbins)
@@ -1203,7 +1202,7 @@ def _build_guignard_weighting(image, decreasing_weight_with_z):
     proc = "_build_guignard_weighting"
 
     if not isinstance(image, SpatialImage):
-        print proc + ": argument image is not an ndarray"
+        print(proc + ": argument image is not an ndarray")
         return
 
     th = _threshold_otsu(image)
@@ -1227,7 +1226,7 @@ def _build_corner_weighting(image, decreasing_weight_with_z):
     proc = "_build_corner_weighting"
 
     if not isinstance(image, SpatialImage):
-        print proc + ": argument image is not an ndarray"
+        print(proc + ": argument image is not an ndarray")
         return
 
     mask = np.full_like(image, 0.1, dtype=np.float32)
@@ -1263,7 +1262,7 @@ def _build_ramp_weighting(image, decreasing_weight_with_z):
     proc = "_build_ramp_weighting"
 
     if not isinstance(image, SpatialImage):
-        print proc + ": argument image is not an ndarray"
+        print(proc + ": argument image is not an ndarray")
         return
 
     mask = np.zeros_like(image, dtype=np.float32)
@@ -1284,7 +1283,7 @@ def _build_uniform_weighting(image):
 
     proc = "_build_uniform_weighting"
     if not isinstance(image, SpatialImage):
-        print proc + ": argument image is not an ndarray"
+        print(proc + ": argument image is not an ndarray")
         return
 
     mask = np.ones_like(image, dtype=np.float32)
@@ -1317,7 +1316,7 @@ def _build_unreg_weighting_image(template_image_name, weighting_image_name, decr
         monitoring.to_log_and_console(str(proc) + ": unknown weighting function, switch to uniform")
         unreg_weight = _build_uniform_weighting(im)
 
-    unreg_weight._set_resolution(im._get_resolution())
+    unreg_weight.voxelsize = im.voxelsize
     imsave(weighting_image_name, unreg_weight)
 
     if fusion_weighting.lower() == 'corner' or fusion_weighting.lower() == 'corner-weighting':
@@ -1474,14 +1473,14 @@ def _direct_fusion_process(input_image_list, the_image_list, fused_image, experi
     n_channels = experiment.rawdata_dir.get_number_channels()
 
     if monitoring.debug > 1:
-        print ""
-        print proc + " was called with:"
-        print "- input_image_list = " + str(input_image_list)
-        print "- the_image_list = " + str(the_image_list)
-        print "- fused_image = " + str(fused_image)
+        print("")
+        print(proc + " was called with:")
+        print("- input_image_list = " + str(input_image_list))
+        print("- the_image_list = " + str(the_image_list))
+        print("- fused_image = " + str(fused_image))
         for c in range(n_channels):
             experiment.rawdata_dir.channel[c].print_parameters('channel #' + str(c))
-        print ""
+        print("")
 
     #
     # parameter type checking
@@ -1658,7 +1657,7 @@ def _direct_fusion_process(input_image_list, the_image_list, fused_image, experi
                 # image center
                 #
                 im = imread(the_images[i])
-                ref_center = np.multiply(im.shape[:3], im.resolution) / 2.0
+                ref_center = np.multiply(im.shape[:3], im.voxelsize) / 2.0
                 del im
 
                 #
@@ -1695,7 +1694,7 @@ def _direct_fusion_process(input_image_list, the_image_list, fused_image, experi
                         monitoring.to_log_and_console("       angle used for '" + init_trsfs[i].split(os.path.sep)[-1]
                                                       + "' is " + str(angle), 2)
                         im = imread(the_images[i])
-                        flo_center = np.multiply(im.shape[:3], im.resolution) / 2.0
+                        flo_center = np.multiply(im.shape[:3], im.voxelsize) / 2.0
                         del im
 
                         #
@@ -1706,7 +1705,7 @@ def _direct_fusion_process(input_image_list, the_image_list, fused_image, experi
                         #
                         # the call to _axis_rotation_matrix() was
                         # rotation_matrix = _axis_rotation_matrix(axis="Y", angle=angle, min_space=(0, 0, 0),
-                        #                                         max_space=np.multiply(im.shape[:3], im.resolution))
+                        #                                         max_space=np.multiply(im.shape[:3], im.voxelsize))
                         # Note: it requires that 'im' is deleted after the call
                         #
                         # it can be mimicked by
@@ -1889,14 +1888,14 @@ def _hierarchical_fusion_process(input_image_list, the_image_list, fused_image, 
     n_channels = experiment.rawdata_dir.get_number_channels()
 
     if monitoring.debug > 1:
-        print ""
-        print proc + " was called with:"
-        print "- input_image_list = " + str(input_image_list)
-        print "- the_image_list = " + str(the_image_list)
-        print "- fused_image = " + str(fused_image)
+        print("")
+        print(proc + " was called with:")
+        print("- input_image_list = " + str(input_image_list))
+        print("- the_image_list = " + str(the_image_list))
+        print("- fused_image = " + str(fused_image))
         for c in range(n_channels):
             experiment.rawdata_dir.channel[c].print_parameters('channel #' + str(c))
-        print ""
+        print("")
 
     #
     # parameter type checking
@@ -2088,7 +2087,7 @@ def _hierarchical_fusion_process(input_image_list, the_image_list, fused_image, 
                 # image center
                 #
                 im = imread(the_images[i])
-                ref_center = np.multiply(im.shape[:3], im.resolution) / 2.0
+                ref_center = np.multiply(im.shape[:3], im.voxelsize) / 2.0
                 del im
 
                 #
@@ -2230,10 +2229,10 @@ def _hierarchical_fusion_process(input_image_list, the_image_list, fused_image, 
     elif parameters.acquisition_orientation.lower() == 'right':
         angle = 90.0
     im = imread(the_images[0])
-    ref_center = np.multiply(im.shape[:3], im.resolution) / 2.0
+    ref_center = np.multiply(im.shape[:3], im.voxelsize) / 2.0
     del im
     im = imread(the_images[2])
-    flo_center = np.multiply(im.shape[:3], im.resolution) / 2.0
+    flo_center = np.multiply(im.shape[:3], im.voxelsize) / 2.0
     del im
     rotation_matrix = _init_rotation_matrix(axis="Y", angle=angle, ref_center=ref_center, flo_center=flo_center)
     np.savetxt(init_trsfs, rotation_matrix)
@@ -2362,7 +2361,7 @@ def _hierarchical_fusion_process(input_image_list, the_image_list, fused_image, 
                 # image center
                 #
                 im = imread(the_images[i])
-                ref_center = np.multiply(im.shape[:3], im.resolution) / 2.0
+                ref_center = np.multiply(im.shape[:3], im.voxelsize) / 2.0
                 del im
 
                 #
@@ -2506,13 +2505,13 @@ def _fusion_process(input_image_list, fused_image, experiment, parameters):
     n_channels = experiment.rawdata_dir.get_number_channels()
 
     if monitoring.debug > 1:
-        print ""
-        print proc + " was called with:"
-        print "- input_image_list = " + str(input_image_list)
-        print "- fused_image = " + str(fused_image)
+        print("")
+        print(proc + " was called with:")
+        print("- input_image_list = " + str(input_image_list))
+        print("- fused_image = " + str(fused_image))
         for c in range(n_channels):
             experiment.rawdata_dir.channel[c].print_parameters('channel #' + str(c))
-        print ""
+        print("")
 
     #
     # parameter type checking
@@ -2868,7 +2867,7 @@ def _fusion_process(input_image_list, fused_image, experiment, parameters):
                         if not os.path.isfile(res_images[i]) or monitoring.forceResultsToBeBuilt is True:
                             the_im = imread(the_images[i])
                             res_im = SpatialImage(the_im.copy())[:, :, -1::-1]
-                            res_im._set_resolution(the_im._get_resolution())
+                            res_im.voxelsize = the_im.voxelsize
                             imsave(res_images[i], res_im)
                             del the_im
                             del res_im
@@ -2891,7 +2890,7 @@ def _fusion_process(input_image_list, fused_image, experiment, parameters):
                             else:
                                 if parameters.acquisition_stack0_leftcamera_z_stacking.lower() == 'inverse':
                                     res_im = SpatialImage(the_im.copy())[:, :, -1::-1]
-                            res_im._set_resolution(the_im._get_resolution())
+                            res_im.voxelsize = the_im.voxelsize
                             imsave(res_images[i], res_im)
                             del the_im
                             del res_im
@@ -2906,7 +2905,7 @@ def _fusion_process(input_image_list, fused_image, experiment, parameters):
                         if not os.path.isfile(res_images[i]) or monitoring.forceResultsToBeBuilt is True:
                             the_im = imread(the_images[i])
                             res_im = SpatialImage(the_im.copy())[:, :, -1::-1]
-                            res_im._set_resolution(the_im._get_resolution())
+                            res_im.voxelsize = the_im.voxelsize
                             imsave(res_images[i], res_im)
                             del the_im
                             del res_im
@@ -2929,7 +2928,7 @@ def _fusion_process(input_image_list, fused_image, experiment, parameters):
                             else:
                                 if parameters.acquisition_stack1_leftcamera_z_stacking.lower() == 'inverse':
                                     res_im = SpatialImage(the_im.copy())[:, :, -1::-1]
-                            res_im._set_resolution(the_im._get_resolution())
+                            res_im.voxelsize = the_im.voxelsize
                             imsave(res_images[i], res_im)
                             del the_im
                             del res_im
@@ -2974,11 +2973,11 @@ def _fusion_preprocess(input_images, fused_image, time_point, experiment, parame
 
     if monitoring.debug > 1:
 
-        print proc + " was called with:"
-        print "- input_images = " + str(input_images)
-        print "- fused_image = " + str(fused_image)
-        print "- time_point = " + str(time_point)
-        print ""
+        print(proc + " was called with:")
+        print("- input_images = " + str(input_images))
+        print("- fused_image = " + str(fused_image))
+        print("- time_point = " + str(time_point))
+        print("")
 
     #
     # parameter type checking
@@ -3179,28 +3178,28 @@ def fusion_control(experiment, parameters):
         prefix3, time_length3, time_points3, suffix3 = _analyze_data_directory(path_angle3)
 
         if monitoring.debug > 0:
-            print ""
-            print "analysis of '" + str(path_angle0) + "'"
-            print "   -> " + prefix0
-            print "   -> " + str(time_length0)
-            print "   -> " + str(time_points0)
-            print "   -> " + suffix0
-            print "analysis of '" + str(path_angle1) + "'"
-            print "   -> " + prefix1
-            print "   -> " + str(time_length1)
-            print "   -> " + str(time_points1)
-            print "   -> " + suffix1
-            print "analysis of '" + str(path_angle2) + "'"
-            print "   -> " + prefix2
-            print "   -> " + str(time_length2)
-            print "   -> " + str(time_points2)
-            print "   -> " + suffix2
-            print "analysis of '" + str(path_angle3) + "'"
-            print "   -> " + prefix3
-            print "   -> " + str(time_length3)
-            print "   -> " + str(time_points3)
-            print "   -> " + suffix3
-            print ""
+            print("")
+            print("analysis of '" + str(path_angle0) + "'")
+            print("   -> " + prefix0)
+            print("   -> " + str(time_length0))
+            print("   -> " + str(time_points0))
+            print("   -> " + suffix0)
+            print("analysis of '" + str(path_angle1) + "'")
+            print("   -> " + prefix1)
+            print("   -> " + str(time_length1))
+            print("   -> " + str(time_points1))
+            print("   -> " + suffix1)
+            print("analysis of '" + str(path_angle2) + "'")
+            print("   -> " + prefix2)
+            print("   -> " + str(time_length2))
+            print("   -> " + str(time_points2))
+            print("   -> " + suffix2)
+            print("analysis of '" + str(path_angle3) + "'")
+            print("   -> " + prefix3)
+            print("   -> " + str(time_length3))
+            print("   -> " + str(time_points3))
+            print("   -> " + suffix3)
+            print("")
 
         #
         # loop over acquisitions
@@ -3239,22 +3238,22 @@ def fusion_control(experiment, parameters):
                 images.append(prefix0 + time_point + suffix0)
                 im = prefix1 + time_point + suffix1
                 if time_point not in time_points1:
-                    print proc + ": image '" + im + "' not found in '" + path_angle1 + "'"
-                    print "\t Exiting."
+                    print(proc + ": image '" + im + "' not found in '" + path_angle1 + "'")
+                    print("\t Exiting.")
                     sys.exit(1)
                 else:
                     images.append(im)
                 im = prefix2 + time_point + suffix2
                 if time_point not in time_points2:
-                    print proc + ": image '" + im + "' not found in '" + path_angle2 + "'"
-                    print "\t Exiting."
+                    print(proc + ": image '" + im + "' not found in '" + path_angle2 + "'")
+                    print("\t Exiting.")
                     sys.exit(1)
                 else:
                     images.append(im)
                 im = prefix3 + time_point + suffix3
                 if time_point not in time_points3:
-                    print proc + ": image '" + im + "' not found in '" + path_angle3 + "'"
-                    print "\t Exiting."
+                    print(proc + ": image '" + im + "' not found in '" + path_angle3 + "'")
+                    print("\t Exiting.")
                     sys.exit(1)
                 else:
                     images.append(im)

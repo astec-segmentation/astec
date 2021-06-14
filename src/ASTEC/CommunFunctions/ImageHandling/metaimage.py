@@ -24,12 +24,9 @@ __revision__ = " $Id$ "
 
 import os
 from os import path
-import sys
 import numpy as np
-# from struct import calcsize, pack, unpack
 import gzip
-from cStringIO import StringIO
-from spatial_image import SpatialImage
+from .spatial_image import SpatialImage
 
 __all__ = ["read_metaimage", "write_metaimage"]
 
@@ -45,17 +42,18 @@ def open_metaimagefile(filename):
 
     Manage the gz attribute
     """
-    program = "open_inrifile"
+    program = "open_metaimagefile"
     if not os.path.isfile(filename) and os.path.isfile(filename+".gz"):
         filename = filename+".gz"
-        print "%s: Warning: path to read image has been changed to %s." % (program, filename)
+        print("%s: Warning: path to read image has been changed to %s." % (program, filename))
     if not os.path.isfile(filename) and os.path.isfile(filename+".zip"):
         filename = filename+".zip"
-        print "%s: Warning: path to read image has been changed to %s." % (program, filename)
+        print("%s: Warning: path to read image has been changed to %s." % (program, filename))
     if path.splitext(filename)[1] in (".gz", ".zip"):
         fzip = gzip.open(filename, 'rb')
-        f = StringIO(fzip.read())
-        fzip.close()
+        # f = StringIO(fzip.read())
+        # fzip.close()
+        return fzip
     else:
         f = open(filename, 'rb')
 
@@ -69,7 +67,7 @@ def _read_header(f):
 
     prop = {}
     while True:
-        key, val = f.readline().rstrip('\n\r').split(" = ")
+        key, val = f.readline().decode('utf8').rstrip('\n\r').split(" = ")
         if key == 'ElementDataFile':
             if val == 'LOCAL':
                 break
@@ -138,8 +136,8 @@ def read_metaimage(filename):
     # find resolution
     #
     resolution = prop.pop("ElementSize").split(' ')
-    res = [];
-    for i in range(0,len(resolution)):
+    res = []
+    for i in range(0, len(resolution)):
         res.append(float(resolution[i]))
 
     # read datas
@@ -192,7 +190,7 @@ def write_metaimage_to_stream(stream, img):
     #
     # image resolutions
     #
-    res = getattr(img, "resolution", (1, 1, 1))
+    res = getattr(img, "voxelsize", (1, 1, 1))
     info["ElementSize"] = str(res[0]) + ' ' + str(res[1]) + ' ' + str(res[2])
     info["ElementSpacing"] = str(res[0]) + ' ' + str(res[1]) + ' ' + str(res[2])
 
@@ -237,8 +235,7 @@ def write_metaimage_to_stream(stream, img):
     #
     # write raw data
     #
-
-    stream.write(header)
+    stream.write(header.encode('utf8'))
     if img.ndim == 2 or img.ndim == 3:
         stream.write(img.tostring("F"))
     # elif img.ndim == 4:

@@ -7,11 +7,9 @@ import numpy as np
 import shutil
 from scipy import ndimage as nd
 
-import common
-
-import CommunFunctions.cpp_wrapping as cpp_wrapping
-from CommunFunctions.ImageHandling import SpatialImage, imread, imsave
-
+import ASTEC.common as common
+from ASTEC.CommunFunctions.ImageHandling import SpatialImage, imread, imsave
+import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
 
 #
 #
@@ -257,11 +255,11 @@ def correction_process(input_image, output_image, parameters):
     proc = "correction_process"
 
     if monitoring.debug > 2:
-        print ""
-        print proc + " was called with:"
-        print "- input_image = " + str(input_image)
-        print "- output_image = " + str(output_image)
-        print ""
+        print("")
+        print(proc + " was called with:")
+        print("- input_image = " + str(input_image))
+        print("- output_image = " + str(output_image))
+        print("")
 
     #
     # nothing to do if the corrected image exists
@@ -297,7 +295,7 @@ def correction_process(input_image, output_image, parameters):
     # build a dictionary and sort it (increasing order) wrt the volume
 
     im = imread(output_image)
-    voxelsize = im._get_resolution()
+    voxelsize = im.voxelsize
     vol = voxelsize[0] * voxelsize[1] * voxelsize[2]
 
     cell_label = np.unique(im)

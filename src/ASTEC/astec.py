@@ -4,20 +4,19 @@ import imp
 import sys
 import shutil
 import time
-import morphsnakes
 import multiprocessing
 import numpy as np
 from scipy import ndimage as nd
 import copy
 
-import ace
-import mars
-import common
-import reconstruction
-import properties as properties
-import CommunFunctions.cpp_wrapping as cpp_wrapping
-
-from CommunFunctions.ImageHandling import imread, imsave, SpatialImage
+import ASTEC.common as common
+import ASTEC.ace as ace
+import ASTEC.mars as mars
+import ASTEC.reconstruction as reconstruction
+import ASTEC.properties as properties
+import ASTEC.morphsnakes as morphsnakes
+from ASTEC.CommunFunctions.ImageHandling import imread, imsave, SpatialImage
+import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
 
 #
 #
@@ -702,7 +701,7 @@ def _build_seeds_from_previous_segmentation(label_image, output_image, parameter
     for eroded, i, bb in outputs:
         seeds[bb][eroded] = i
 
-    seeds._set_resolution(seg._get_resolution())
+    seeds.voxelsize = seg.voxelsize
     imsave(output_image, seeds)
 
     return
@@ -961,7 +960,7 @@ def _select_seed_parameters(n_seeds, parameter_seeds, tau=25):
     # np.sum(np.array(s) == 2) is equal to s.count(2)
     # 
 
-    for c, s in n_seeds.iteritems():
+    for c, s in n_seeds.items():
         nb_2 = np.sum(np.array(s) == 2)
         nb_3 = np.sum(np.array(s) >= 2)
         score = nb_2*nb_3
@@ -1315,7 +1314,7 @@ def _build_seeds_from_selected_parameters(selected_parameter_seeds,
     # - either "for i in seed_image_list.keys():"
     # - or "for i in list(seed_image_list):"
     #
-    for i in seed_image_list.keys():
+    for i in list(seed_image_list.keys()):
         del seed_image_list[i]
 
     del first_segmentation
@@ -1352,7 +1351,7 @@ def _compute_volumes(im):
     volume = nd.sum(np.ones_like(readim), readim, index=np.int16(labels))
     if type(im) is str:
         del readim
-    return dict(zip(labels, volume))
+    return dict(list(zip(labels, volume)))
 
 
 def _update_volume_properties(lineage_tree_information, segmented_image, current_time, experiment):
@@ -1366,7 +1365,7 @@ def _update_volume_properties(lineage_tree_information, segmented_image, current
         lineage_tree_information[volume_key] = {}
 
     dtmp = {}
-    for key, value in volumes.iteritems():
+    for key, value in volumes.items():
         newkey = current_time * 10 ** time_digits + int(key)
         dtmp[newkey] = value
     lineage_tree_information[volume_key].update(dtmp)
@@ -1377,7 +1376,7 @@ def _build_correspondences_from_segmentation(segmented_image):
     volumes = _compute_volumes(segmented_image)
     tmp = {}
     # if the volume exists, it means that this cell has a mother cell with the same label
-    for key, value in volumes.iteritems():
+    for key, value in volumes.items():
         tmp[key] = [int(key)]
     return tmp
 
@@ -1392,7 +1391,7 @@ def _update_lineage_properties(lineage_tree_information, correspondences, previo
         lineage_tree_information[lineage_key] = {}
 
     dtmp = {}
-    for key, value in correspondences.iteritems():
+    for key, value in correspondences.items():
         newkey = previous_time * 10**time_digits + int(key)
         vtmp = []
         for i in value:
@@ -1441,7 +1440,7 @@ def _volume_diagnosis(prev_volumes, curr_volumes, correspondences, parameters):
 
     all_daughter_label = []
 
-    for mother_c, daughters_c in correspondences.iteritems():
+    for mother_c, daughters_c in correspondences.items():
         #
         # skip background
         #
@@ -1956,7 +1955,7 @@ def _volume_decrease_correction(astec_name, previous_segmentation, segmentation_
     corr_selected_seeds = common.add_suffix(astec_name, '_seeds_from_corrected_selection',
                                             new_dirname=experiment.astec_dir.get_tmp_directory(),
                                             new_extension=experiment.default_image_suffix)
-    voxelsize = selected_seeds_image._get_resolution()
+    voxelsize = selected_seeds_image.voxelsize
     imsave(corr_selected_seeds, SpatialImage(selected_seeds_image, voxelsize=voxelsize).astype(np.uint16))
     del selected_seeds_image
 
@@ -2047,7 +2046,7 @@ def _morphosnakes(parameters_for_parallelism):
     before = np.ones_like(initialization)
 
     step = 1
-    for i in xrange(0, astec_parameters.iterations, step):
+    for i in range(0, astec_parameters.iterations, step):
         bbefore = copy.deepcopy(before)
         before = copy.deepcopy(macwe.levelset)
         macwe.run(step)
@@ -2104,7 +2103,7 @@ def _historical_morphosnakes(parameters_for_parallelism):
     before = np.ones_like(initialization)
 
     step = 1
-    for i in xrange(0, astec_parameters.iterations, step):
+    for i in range(0, astec_parameters.iterations, step):
         bbefore = copy.deepcopy(before)
         before = copy.deepcopy(macwe.levelset)
         macwe.step()
@@ -2144,6 +2143,8 @@ def _outer_volume_decrease_correction(astec_name, previous_segmentation, deforme
                                       segmentation_from_selection, membrane_image, correspondences,
                                       experiment, parameters):
     """
+    Correction of cells that experiment a large volume decrease due to the background.
+    The correction is done with the morphosnake algorithm.
     :param astec_name: generic name for image file name construction
     :param previous_segmentation: watershed segmentation obtained with segmentation image at previous timepoint
     :param deformed_segmentation: segmentation image at previous timepoint deformed to superimpose current time point
@@ -2320,6 +2321,9 @@ def _outer_volume_decrease_correction(astec_name, previous_segmentation, deforme
     # is there is a correction to be done (cell has gained over the background),
     # then fuse all "daughter" cell
     #
+    # For reproductibility, sort the outputs wrt mother cell id
+    #
+    outputs.sort()
     effective_exterior_correction = []
     for mother_c, bb, cell_out in outputs:
         daughter_c = correspondences[mother_c][0]
@@ -2404,7 +2408,7 @@ def _multiple_label_fusion(input_segmentation, output_segmentation, corresponden
     segmentation = imread(input_segmentation)
     cells = list(np.unique(segmentation))
     cells.remove(1)
-    bounding_boxes = dict(zip(range(1, max(cells) + 1), nd.find_objects(segmentation)))
+    bounding_boxes = dict(list(zip(list(range(1, max(cells) + 1)), nd.find_objects(segmentation))))
 
     for mother, daughters in labels_to_be_fused:
         if len(daughters) != 3:
@@ -2655,7 +2659,7 @@ def astec_process(previous_time, current_time, lineage_tree_information, experim
     first_segmentation = imread(segmentation_from_previous)
     cells = list(np.unique(first_segmentation))
     cells.remove(1)
-    bounding_boxes = dict(zip(range(1, max(cells) + 1), nd.find_objects(first_segmentation)))
+    bounding_boxes = dict(list(zip(list(range(1, max(cells) + 1)), nd.find_objects(first_segmentation))))
     del first_segmentation
 
     #
@@ -2827,7 +2831,7 @@ def astec_process(previous_time, current_time, lineage_tree_information, experim
     #
 
     labels_to_be_fused = []
-    for key, value in correspondences.iteritems():
+    for key, value in correspondences.items():
         if len(value) >= 3:
             labels_to_be_fused.append([key, value])
     if len(labels_to_be_fused) > 0:

@@ -6,11 +6,10 @@ import time
 import numpy as np
 from scipy import ndimage as nd
 
-import common
-import reconstruction
-
-import CommunFunctions.cpp_wrapping as cpp_wrapping
-from CommunFunctions.ImageHandling import imread, imsave
+import ASTEC.common as common
+import ASTEC.reconstruction as reconstruction
+from ASTEC.CommunFunctions.ImageHandling import imread, imsave
+import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
 
 #
 #

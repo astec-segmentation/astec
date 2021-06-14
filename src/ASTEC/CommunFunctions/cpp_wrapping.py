@@ -3,7 +3,7 @@ import os
 import sys
 import subprocess
 
-from ImageHandling import imread, imsave, SpatialImage
+from ASTEC.CommunFunctions.ImageHandling import imread, imsave, SpatialImage
 
 
 ############################################################
@@ -34,7 +34,7 @@ def __find_exec(executable_file):
     """
     cmd = 'which' + ' ' + str(executable_file)
     try:
-        which_exec = subprocess.check_output(cmd, shell=True)
+        which_exec = (subprocess.check_output(cmd, shell=True)).decode('utf-8')
         path_to_exec = which_exec.split('\n')[0]
     except subprocess.CalledProcessError:
         try_file = os.path.join(os.path.dirname(__file__), 'cpp', 'vt', 'build', 'bin', str(executable_file))
@@ -641,7 +641,7 @@ def multiple_trsfs(format_input, format_output, first, last, reference, trsf_typ
     return
 
 
-def change_multiple_trsfs(format_input, format_output, first, last, reference, result_template, trsf_type='rigid',
+def change_multiple_trsfs(format_input, format_output, first, last, referenceid, result_template, trsf_type='rigid',
                           resolution=None, threshold=None, margin=None, format_template=None,
                           reference_transformation=None, other_options=None, monitoring=None):
     """
@@ -650,7 +650,7 @@ def change_multiple_trsfs(format_input, format_output, first, last, reference, r
     :param format_output:
     :param first:
     :param last:
-    :param reference:
+    :param referenceid:
     :param result_template:
     :param trsf_type:
     :param resolution:
@@ -667,7 +667,7 @@ def change_multiple_trsfs(format_input, format_output, first, last, reference, r
 
     command_line = path_to_exec + " -format " + format_input + " -res-format " + format_output
     command_line += " -first " + str(first) + " -last " + str(last)
-    command_line += " -reference " + str(reference)
+    command_line += " -reference " + str(referenceid)
     command_line += " -result-template " + str(result_template)
 
     command_line += " -trsf-type " + trsf_type
@@ -875,11 +875,11 @@ def gradient_norm(path_input, path_output, filter_value=1.0, real_scale=False, f
 
 
 def obsolete_gradient_norm(image_input,gradient_output):
-    ''' Perform the gradient norm of an intensity image
+    """Perform the gradient norm of an intensity image
     im_input : input image (SpatialImage)
     path_input : path to the input image
     path_output : path to the output image
-    '''
+    """
     path_gradient_norm = _find_exec('norme_gradient')
     os.system(path_gradient_norm + ' ' + image_input + ' ' + gradient_output + ' -sigma 1')
 
@@ -1406,7 +1406,7 @@ def bounding_boxes(image_labels, path_bboxes=None, monitoring=None):
         if not line.lstrip().startswith('#'):
             li = line.split()
             if int(li[1]):
-                boxes[int(li[0])] = map(int, li[1:])
+                boxes[int(li[0])] = list(map(int, li[1:]))
 
     if path_bboxes is None:
         os.remove(file_boxes)
@@ -1705,7 +1705,7 @@ def obsolete_seuillage(path_input, path_output='tmp_threshold.inr',sb=1, sh=None
     cmd=path_seuillage + ' ' + path_input + ' ' + path_output +\
               ' -sb '+str(sb) + options
     if verbose:
-      print cmd
+      print(cmd)
     os.system(cmd)
     if not lazy:
         out = imread(path_output)
@@ -1734,12 +1734,12 @@ def obsolete_membrane_renforcement(path_input, prefix_output='tmp_membrane', pat
     cmd=path_membrane + ' ' + path_input + ' ' + prefix_output +\
               ' -single -init '+str(init) + options + " -extension inr"
     if verbose:
-      print cmd
+      print(cmd)
     os.system(cmd)
     if os.path.exists(prefix_output+'.rep.inr'):
       cmd='rm ' + prefix_output+'.rep.inr'
       if verbose:
-        print cmd
+        print(cmd)
       os.system(cmd)
 
     if not lazy:
@@ -1757,7 +1757,7 @@ def _recfilter(path_input, path_output='tmp.inr', filter_value=2, rad_min=1, laz
     rad_min : TO REMOVE, NOT USED
     lazy : do not return the output image if True
     '''
-    print "recfilter: WARNING: This function is obsolete. The user should replace its use by function linearfilter."
+    print("recfilter: WARNING: This function is obsolete. The user should replace its use by function linearfilter.")
     os.system(path_filters + ' ' + path_input +\
               ' ' + path_output +\
               ' -cont 10 -sigma ' + str(filter_value) +\
@@ -1791,7 +1791,7 @@ def obsolete_linearfilter(path_input, path_output='tmp.inr', filter_value=2, rad
               ' -cont 10 -sigma ' + str(filter_value) + opt +\
               ' -x 0 -y 0 -z 0 -o 2'
     if verbose:
-      print cmd
+      print(cmd)
     os.system(cmd)
     if not lazy:
         out = imread(path_output)
@@ -1812,13 +1812,13 @@ def _regionalmax(path_input, path_output, h_min):
               ' -inv')
     else:
       if os.path.exists(path_regional_ext):
-        print "Warning : using " + path_regional_ext + " instead of " + path_regional_max + " (not found)."
+        print("Warning : using " + path_regional_ext + " instead of " + path_regional_max + " (not found).")
         os.system(path_regional_ext + ' ' + path_input +\
               ' -diff ' + path_output +' '+temp_out+\
               ' -h ' + str(h_min) +\
               ' -min')
       else:
-        print "Error : did not found " + path_regional_max + " neither "+ path_regional_ext + " binary functions. Exiting."
+        print("Error : did not found " + path_regional_max + " neither "+ path_regional_ext + " binary functions. Exiting.")
         return
     
     os.system('rm ' + temp_out)
@@ -1866,7 +1866,7 @@ def obsolete_watershed(path_seeds, path_int, path_output=None, lazy=True, tempor
               ' ' + path_output
 
     if verbose:
-      print command
+      print(command)
     os.system(command)
 
     if not lazy:
@@ -1874,7 +1874,7 @@ def obsolete_watershed(path_seeds, path_int, path_output=None, lazy=True, tempor
         if cmd:
            cmd='rm '+cmd
            if verbose:
-               print cmd
+               print(cmd)
            os.system(cmd)
         return out
 
@@ -1931,7 +1931,7 @@ def obsolete_non_linear_registration(image_file_flo,image_file_ref, affine_image
               " -pyramid-lowest-level 3" +\
               " -lts-fraction 0.55"
     if verbose:
-      print cmd
+      print(cmd)
     os.system(cmd)
     
     cmd=path_block +\
@@ -1949,7 +1949,7 @@ def obsolete_non_linear_registration(image_file_flo,image_file_ref, affine_image
               " -fluid-sigma 2.0 2.0 2.0" +\
               " -composition-with-initial"
     if verbose:
-      print cmd
+      print(cmd)
     os.system(cmd)
     
 
@@ -2001,7 +2001,7 @@ def rigid_registration(path_ref, path_flo, path_trsf, path_output, path_output_t
     if path_trsf :
       cmd = cmd + " -left-trsf " + path_trsf
     if verbose:
-      print cmd
+      print(cmd)
     os.system(cmd)
 
 def apply_trsf(path_flo, path_trsf=None, path_output="tmp_seeds.inr",
@@ -2038,7 +2038,7 @@ def apply_trsf(path_flo, path_trsf=None, path_output="tmp_seeds.inr",
       assert len(dimensions)==3
       command_line += " -dim %d %d %d"%(int(dimensions[0]), int(dimensions[1]), int(dimensions[2]))
     if verbose:
-      print command_line
+      print(command_line)
     os.system(command_line)
     if not lazy:
         out=imread(path_output)
@@ -2071,7 +2071,7 @@ def obsolete_find_local_minima(path_out, path_ref, h_min, mask=None, sigma=0.6, 
               '-h ' + str(h_min) + ' ' +\
               '-min'
         if verbose:
-            print cmd
+            print(cmd)
         os.system(cmd)
     else:
         cmd=path_regional_ext + ' ' + mask + ' ' + \
@@ -2079,7 +2079,7 @@ def obsolete_find_local_minima(path_out, path_ref, h_min, mask=None, sigma=0.6, 
             tmp_min + ' ' + \
             '-h ' + str(h_min) + ' -max'
         if verbose:
-            print cmd
+            print(cmd)
         os.system(cmd)
 
     path_connexe = _find_exec('connexe')
@@ -2088,7 +2088,7 @@ def obsolete_find_local_minima(path_out, path_ref, h_min, mask=None, sigma=0.6, 
               '-sb 1 -sh ' + str(h_min) +\
               ' -labels -o 2'
     if verbose:
-      print cmd
+      print(cmd)
     os.system(cmd)
     try:
         im=imread(path_out.replace('\\', ''))
@@ -2096,7 +2096,7 @@ def obsolete_find_local_minima(path_out, path_ref, h_min, mask=None, sigma=0.6, 
         im=None
     cmd='rm -f '+tmp_filt+' '+tmp_min
     if verbose:
-      print cmd
+      print(cmd)
     os.system(cmd);
     return im, path_mask_out
 
@@ -2106,7 +2106,7 @@ def obsolete_morpho(image_input,image_output,paramstre,verbose=False):
   path_morpho = _find_exec('morpho')
   cmd=path_morpho+' '+image_input+' '+' '+image_output+' '+ paramstre
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
 
   
@@ -2137,10 +2137,10 @@ def outer_detection(im_ref_tmp, radius, seg_ref_tmp):
     im_th[im>=low]=1 # Cytoplasm
     if radius!='0':
         imsave("tmp.inr", SpatialImage(im_th))
-        os.system((path_morpho + " tmp.inr closing.inr -clo -R " + radius))
+        os.system(path_morpho + " tmp.inr closing.inr -clo -R " + radius)
     else:
         imsave("closing.inr", SpatialImage(im_th))
-    os.system((path_morpho + " closing.inr erode.inr -ero -R 5"))
+    os.system(path_morpho + " closing.inr erode.inr -ero -R 5")
     imE=imread("closing.inr")
     imE=nd.binary_fill_holes(imE)
     mask=np.uint8(imE)
@@ -2208,7 +2208,7 @@ def obsolete_anisotropicHist(path_input="temp_membrane.ext.inr", path_output='tm
         #For Autoparametrization
         cmd=path_anisotropicHist + ' ' + path_input + ' ' + path_hist + ' -bin-out ' + str(path_output) +' -v -auto -sensitivity '+str(sensitivity) + mask_option
         if verbose:
-          print cmd
+          print(cmd)
         os.system(cmd)
     else:
         #Manual
@@ -2218,7 +2218,7 @@ def obsolete_anisotropicHist(path_input="temp_membrane.ext.inr", path_output='tm
         lmax=manual_sigma*5.0
         cmd=path_anisotropicHist + ' ' + path_input + ' ' + path_hist + ' -bin-out ' + str(path_output) + ' -v -rayleighcentered '+str(amplitude)+' '+str(manual_sigma)+' -lmin '+str(lmin)+' -lmax '+str(lmax)+' -sensitivity '+str(sensitivity) + mask_option
         if verbose:
-          print cmd
+          print(cmd)
         os.system(cmd)
 
     
@@ -2236,19 +2236,19 @@ def obsolete_anisotropicHist(path_input="temp_membrane.ext.inr", path_output='tm
       if path_theta != path_output_theta:
         cmd=path_copy + " " + path_theta + " " + path_output_theta
         if verbose:
-          print cmd
+          print(cmd)
         os.system(cmd)
       if path_phi != path_output_phi:
         cmd=path_copy + " " + path_phi + " " + path_output_phi
         if verbose:
-          print cmd
+          print(cmd)
         os.system(cmd)
 
       if not keepAll:
         if os.path.exists(path_hist):
           cmd='rm ' + path_hist
           if verbose:
-            print cmd
+            print(cmd)
           os.system(cmd)
 
     if not lazy:
@@ -2265,7 +2265,7 @@ def obsolete_nonZerosImage(image_in, verbose=False):
 
   if verbose:
     cmd = cmd + ' -v'
-    print cmd
+    print(cmd)
 
   return bool(os.system(cmd))
 
@@ -2304,13 +2304,13 @@ def obsolete_TVmembrane(path_input="temp_membrane.bin.inr", path_output='tmp_TVm
       path_TVmembrane = _find_exec('TVmembrane')
       cmd=path_TVmembrane + ' ' + path_input +' -output-eigenvalues ' + prefixe_output + mask_option + ' -scale '+str(scale) +' -hessian -sample '+str(sample) + tvOpt
       if verbose:
-        print cmd
+        print(cmd)
       os.system(cmd)
       #Substract eigenvalues
       path_Arit = _find_exec('Arit')
       cmd=path_Arit + ' ' + prefixe_output+'.imvp3.inr' +' ' + prefixe_output+'.imvp1.inr ' +prefixe_output+'.tv.inr  -sub '
       if verbose:
-        print cmd
+        print(cmd)
       os.system(cmd)
       #Gaussian
       lfOpt=""
@@ -2321,7 +2321,7 @@ def obsolete_TVmembrane(path_input="temp_membrane.bin.inr", path_output='tmp_TVm
       path_linearFilter = _find_exec('linearFilter')
       cmd=path_linearFilter + ' ' + prefixe_output+'.tv.inr' +' ' +prefixe_output+'.lf.inr  -x 0 -y 0 -z 0 -sigma ' + str(sigma_LF) + lfOpt 
       if verbose:
-        print cmd
+        print(cmd)
       os.system(cmd)
       #u16 conversion  
       #os.system(path_copy + ' ' + path_output+'.lf.inr' +' ' +path_output+'.u16.inr  -norma -o 2')
@@ -2329,7 +2329,7 @@ def obsolete_TVmembrane(path_input="temp_membrane.bin.inr", path_output='tmp_TVm
       path_copy = _find_exec('copy')
       cmd=path_copy + ' ' + prefixe_output+'.lf.inr' +' ' +path_output + ' -norma -o 1'
       if verbose:
-        print cmd
+        print(cmd)
       os.system(cmd)
 
       if not keepAll:
@@ -2340,16 +2340,16 @@ def obsolete_TVmembrane(path_input="temp_membrane.bin.inr", path_output='tmp_TVm
         files_to_erase.replace(' '+path_output.lstrip().rstrip(),'') # in case path_output would correspond to one of the file names automatically generated by TVmembrane...
         cmd='rm ' + files_to_erase
         if verbose:
-          print cmd
+          print(cmd)
         os.system(cmd)
     else:
       # The input image is only compounded of zeros : the output image will only contain zeros too
       if verbose:
-        print "WARNING : TVmembrane INPUT IMAGE " + path_input + " SEEMS TO CONTAIN ONLY VOXELS WITH NULL VALUE /!\\"
+        print("WARNING : TVmembrane INPUT IMAGE " + path_input + " SEEMS TO CONTAIN ONLY VOXELS WITH NULL VALUE /!\\")
       path_copy = _find_exec('copy')
       cmd=path_copy + ' ' + path_input + ' ' + path_output + ' -o 1'
       if verbose:
-        print cmd
+        print(cmd)
       os.system(cmd)
 
     if not lazy:
@@ -2371,12 +2371,12 @@ def obsolete_copy(path_input, path_output, normalize=False, lazy=True, verbose=F
     if normalize:
       cmd=path_copy + ' ' + path_input + ' ' + path_output + '-norma -o 1'
       if verbose:
-        print cmd
+        print(cmd)
       os.system(cmd)
     else:
       cmd=path_copy + ' ' + path_input + ' ' + path_output
       if verbose:
-        print cmd
+        print(cmd)
       os.system(cmd)
 
     if not lazy:
@@ -2408,7 +2408,7 @@ def directionHistogram(path_input,path_output,rayon=None,sigma=None,verbose=0,la
     commande_shell=path_directionHistogram + ' ' + path_input + ' ' + path_output + ' ' + options
 
     if verbose:
-        print commande_shell
+        print(commande_shell)
     os.system(commande_shell)
 
     if not lazy:
@@ -2449,14 +2449,14 @@ def directionHistogramMaxima(path_input, file_out=None, maxima=None, frac=None, 
 
   commande_shell=path_directionHistogramMaxima+" "+path_input+" "+file_out+" "+options
   if verbose:
-    print commande_shell
+    print(commande_shell)
   os.system(commande_shell)
 
   normals = loadtxt(file_out, delimiters=" ")
   if not keep_file:
     commande_shell="rm "+file_out
     if verbose:
-      print commande_shell
+      print(commande_shell)
     os.system(commande_shell)
   return normals
 
@@ -2519,17 +2519,17 @@ def dice(path_image, file_out=None, symmetry=None, binary=False, verbose=False, 
 
   commande_shell = path_dice + " " + path_image + ' ' + file_out + options 
   if verbose:
-    print commande_shell
+    print(commande_shell)
   os.system(commande_shell)
 
   if verbose:
-    print "Read dices file "+file_out+" ..."
+    print("Read dices file "+file_out+" ...")
   dices, mean_dice_max, std_dev_dice_max=read_dices(file_out)
 
   if not keep_file:
     commande_shell="rm "+file_out
     if verbose:
-      print commande_shell
+      print(commande_shell)
     os.system(commande_shell)
 
   return dices, mean_dice_max, std_dev_dice_max
@@ -2577,7 +2577,7 @@ def read_dices(file):
             if flag_d:
               histo_right.append(int(suby[0]))
             else:
-              print "Error ? At line : " + suby
+              print("Error ? At line : " + suby)
     else:
       assert(len(suby[1:])==len(labels_right))
       tab.append(suby[1:])
@@ -2587,14 +2587,14 @@ def read_dices(file):
   assert(len(tab)==len(labels_left))
   dico={}
   for i in range(len(labels_right)):
-    if not dico.has_key(labels_right[i]):
+    if labels_right[i] not in dico:
       dico[labels_right[i]]={}
     dico[labels_right[i]]['histo_right']=histo_right[i]
     dico[labels_right[i]]['dice_right_left']=[float(subt[i]) for subt in tab] 
     dico[labels_right[i]]['histo_left']=[]
     dico[labels_right[i]]['dice_left_right']=[]
   for i in range(len(labels_left)):
-    if not dico.has_key(labels_left[i]):
+    if labels_left[i] not in dico:
       dico[labels_left[i]]={}
       dico[labels_left[i]]['histo_right']=[]
       dico[labels_left[i]]['dice_right_left']=[] 
@@ -2602,11 +2602,11 @@ def read_dices(file):
     dico[labels_left[i]]['dice_left_right']=[float(val) for val in tab[i] ]
   mean_dice_max=0
   std_dev_dice_max=0
-  for k in dico.keys():
+  for k in list(dico.keys()):
     dico[k]['dice_max']=max(dico[k]['dice_left_right']+dico[k]['dice_right_left'])
     mean_dice_max = mean_dice_max + dico[k]['dice_max']
   mean_dice_max = mean_dice_max / len(dico)
-  for k in dico.keys():
+  for k in list(dico.keys()):
     std_dev_dice_max = std_dev_dice_max + (dico[k]['dice_max'] - mean_dice_max)**2
   std_dev_dice_max = sqrt(std_dev_dice_max/len(dico))
 
@@ -2716,7 +2716,7 @@ def symmetryPlane(path_input_image, path_input_sphere=None, normal=None, equatio
     # Calcul du plan de symetrie
     commande_shell=path_symmetryPlane + ' ' + path_input_image + ' '  + options
     if verbose:
-        print commande_shell
+        print(commande_shell)
     os.system(commande_shell)
 
     if not lazy:
@@ -2726,10 +2726,10 @@ def symmetryPlane(path_input_image, path_input_sphere=None, normal=None, equatio
             li=line.strip()
             #print li
             if not li.startswith('#'):
-                print li
+                print(li)
                 l=li.split()
                 for value in l[1:5]:
-                   print value
+                   print(value)
                    #print str(float(value))
                    out.append(float(value))
         fout.close()
@@ -2812,8 +2812,8 @@ def pointCloudRegistration(path_label_ref, path_label_flo, labels_pairing,
     if path_label_ref:
         if type(path_label_ref)==dict:
             f = open(tmp_ref, 'w')
-            for k,v in path_label_ref.iteritems():
-                print >>f, k, v[0], v[1], v[2]
+            for k,v in path_label_ref.items():
+                print(k, v[0], v[1], v[2], file=f)
             f.close()
             options += " -label-ref " + str(tmp_ref)
         else:
@@ -2821,8 +2821,8 @@ def pointCloudRegistration(path_label_ref, path_label_flo, labels_pairing,
     if path_label_flo:
         if type(path_label_flo)==dict:
             f = open(tmp_flo, 'w')
-            for k,v in path_label_flo.iteritems():
-                print >>f, k, v[0], v[1], v[2]
+            for k,v in path_label_flo.items():
+                print(k, v[0], v[1], v[2], file=f)
             f.close()
             options += " -label-flo " + str(tmp_flo)
         else:
@@ -2834,8 +2834,8 @@ def pointCloudRegistration(path_label_ref, path_label_flo, labels_pairing,
     if labels_pairing:
         if type(labels_pairing)==dict:
             f = open(tmp_file, 'w')
-            for k,v in labels_pairing.iteritems():
-                print >>f, k, v
+            for k,v in labels_pairing.items():
+                print(k, v, file=f)
             f.close()
             options += " -pairs " + str(tmp_file)
         else:
@@ -2864,22 +2864,22 @@ def pointCloudRegistration(path_label_ref, path_label_flo, labels_pairing,
 
     commande_shell = path_pointCloudRegistration + ' ' + options
     if verbose:
-        print commande_shell
+        print(commande_shell)
     os.system(commande_shell)
     if type(path_label_ref)==dict:
         cmd='rm ' + tmp_ref
         if verbose:
-            print cmd
+            print(cmd)
         os.system(cmd)
     if type(path_label_flo)==dict:
         cmd='rm ' + tmp_flo
         if verbose:
-            print cmd
+            print(cmd)
         os.system(cmd)
     if type(labels_pairing)==dict:
         cmd='rm ' + tmp_file
         if verbose:
-            print cmd
+            print(cmd)
         os.system(cmd)
     if not lazy:
         out={}
@@ -2989,7 +2989,7 @@ def planeRegistration(path_label_ref, path_label_flo, plane_eq_ref, plane_eq_flo
 
     commande_shell = path_planeRegistration + ' ' + options
     if verbose:
-        print commande_shell
+        print(commande_shell)
     os.system(commande_shell)
 
     if not lazy:
@@ -3042,7 +3042,7 @@ def associateLabels(path_ref, path_flo, path_pairs_ref_flo, path_ref_out, path_f
 
   cmd=path_associateLabels + ' ' + path_ref + ' ' + path_flo  + ' ' + path_pairs_ref_flo + ' ' + path_ref_out + ' ' + path_flo_out + ' ' + path_labels_out + ' ' + options
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
 
 def fuseLabelsWithLUT(image_in, image_out, path_lut, U8=False, lazy=True, verbose=False):
@@ -3052,12 +3052,12 @@ def fuseLabelsWithLUT(image_in, image_out, path_lut, U8=False, lazy=True, verbos
   """
   cmd=path_fuselabels + " " + str(image_in) + " " + str(image_out) + " -lut " + str(path_lut) 
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
   if U8:
     cmd=path_copy + " " + str(image_out) + " " + str(image_out) + " -o 1"
     if verbose:
-      print cmd
+      print(cmd)
     os.system(cmd)
 
   if not lazy:
@@ -3139,7 +3139,7 @@ def obsolete_compose_trsf(path_trsf_1, path_trsf_2, path_output="tmp_compose.inr
   assert(os.path.exists(path_trsf_1) and os.path.exists(path_trsf_2))
   cmd=path_compose_trsf + ' -res ' + path_output + ' -trsfs ' + path_trsf_1 + ' ' + path_trsf_2
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
   if not lazy:
     out=imread(path_output)
@@ -3185,7 +3185,7 @@ def _multiple_trsfs(format_in, format_out, first_index, last_index, reference_in
     cmd = cmd + ' -nfloatingafter ' + str(nfloatingafter)
 
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
 
 def _change_multiple_trsfs(format_trsf_in,
@@ -3242,7 +3242,7 @@ verbose      # vorbose mode
     cmd = cmd + ' -margin ' + str(margin)
 
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
 
 def obsolete_Arit(image_in, image_ext_or_out, image_out=None, Mode=None, Type='', lazy=True, verbose=False):
@@ -3268,7 +3268,7 @@ def obsolete_Arit(image_in, image_ext_or_out, image_out=None, Mode=None, Type=''
   cmd += ' -' + mode + ' ' + Type
 
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
   if not lazy:
     out=None
@@ -3296,7 +3296,7 @@ def obsolete_Logic(image_in, image_ext_or_out, image_out=None, Mode=None, lazy=T
   cmd += ' -' + mode 
 
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
   if not lazy:
     out=None
@@ -3326,7 +3326,7 @@ def obsolete_createImage(image_out, image_template, options='', lazy=True, verbo
   cmd=path_create_image + ' ' + str(image_out) + ' -template ' + str(image_template) + ' ' + options
 
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
   if not lazy:
     out=None
@@ -3346,7 +3346,7 @@ def setVoxelValue(image_in, image_out, x, y, z, value, lazy=True, verbose=False)
   cmd=path_setvoxelvalue + " " + str(image_in) + " " + str(image_out) + " -x " + str(x) + " -y " + str(y) + " -z " + str(z) + " -i " + str(value)
 
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
   if not lazy:
     out=None
@@ -3362,7 +3362,7 @@ def setLabelValue(image_in, image_out, label_in, label_out, lazy=True, verbose=F
   """
   cmd=path_fuselabels + " " + str(image_in) + " " + str(image_out) + " -p " + str(label_out) + " " + str(label_in)
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
   if not lazy:
     out=imread(str(image_out))
@@ -3378,7 +3378,7 @@ def resetLabels(image_in, image_out, labels, lazy=True, verbose=False):
   """
   cmd=path_fuselabels + " " + str(image_in) + " " + str(image_out) + " -s " + str(labels).strip('[]').replace(',',' ')
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
   if not lazy:
     out=imread(str(image_out))
@@ -3403,25 +3403,25 @@ def erodeLabels(image_in, image_out, r=None, lazy=True, verbose=False):
   assert(image_in != image_tmp)
   cmd=path_labelborders + " " + str(image_in) + ' ' + str(image_tmp)
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
   if r:
     cmd=path_morpho + ' -dil -r ' + str(r) + ' ' + str(image_tmp) + ' ' + str(image_tmp)
     if verbose:
-      print cmd
+      print(cmd)
     os.system(cmd)
   cmd = path_Logic + ' -inv ' + str(image_tmp) + ' ' + str(image_tmp)
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
   cmd=path_Logic + " -mask " + str(image_tmp) + ' ' + str(image_in) + ' ' + str(image_out)
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
   if flag_rm:
     cmd='rm -f '+image_tmp
     if verbose:
-      print cmd
+      print(cmd)
     os.system(cmd)
   if not lazy:
     out=imread(str(image_out))
@@ -3438,7 +3438,7 @@ def labelBorders(image_in, image_out, lazy=True, verbose=False):
   assert(os.path.exists(image_in))
   cmd=path_labelborders + " " + str(image_in) + ' ' + str(image_out)
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
   if not lazy:
     out=imread(str(image_out))
@@ -3465,7 +3465,7 @@ def obsolete_boudingboxes(image_labels, file_out=None, verbose=False):
   path_boundingboxes = _find_exec('boundingboxes')
   cmd=path_boundingboxes+' '+image_labels+' '+file_out
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
   D={}
   f=open(file_out, 'r')
@@ -3477,12 +3477,12 @@ def obsolete_boudingboxes(image_labels, file_out=None, verbose=False):
     if not line.lstrip().startswith('#'):
       l=line.split()
       if int(l[1]):
-        D[int(l[0])]=map(int,l[1:])
+        D[int(l[0])]=list(map(int,l[1:]))
 
   if not keep_file:
     cmd='rm '+file_out
     if verbose:
-      print cmd
+      print(cmd)
     os.system(cmd)
 
   return D
@@ -3501,7 +3501,7 @@ def obsolete_cropImage(image_in, image_out, bbox, verbose=False):
   path_cropImage = _find_exec('cropImage')
   cmd=path_cropImage + ' ' + image_in + " " + image_out + " -origin " + str(bbox[0]) + ' ' + str(bbox[1]) + ' ' + str(bbox[2]) + ' -dim ' + str(bbox[3]-bbox[0]+1) + " " + str(bbox[4]-bbox[1]+1) + " " + str(bbox[5]-bbox[2]+1)
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
 
 def obsolete_patchLogic(image_patch, image_ext, image_out, origin, Mode=None, verbose=False):
@@ -3520,7 +3520,7 @@ def obsolete_patchLogic(image_patch, image_ext, image_out, origin, Mode=None, ve
   path_patchLogic = _find_exec('patchLogic')
   cmd = path_patchLogic + ' ' + image_patch + " " + image_ext + " " + image_out + " -origin " + str(origin[0]) + ' ' + str(origin[1]) + ' ' + str(origin[2]) + ' -' + mode
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
 
 def obsolete_mc_adhocFuse(image_fuse, image_seg, image_out, min_percentile=0.01, max_percentile=0.99, min_method='cellinterior', max_method='cellborder', sigma=5.0, verbose=False):
@@ -3609,5 +3609,5 @@ def obsolete_mc_adhocFuse(image_fuse, image_seg, image_out, min_percentile=0.01,
    image_out]
   cmd=' '.join(arguments)
   if verbose:
-    print cmd
+    print(cmd)
   os.system(cmd)
