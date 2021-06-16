@@ -1,0 +1,32 @@
+package:
+  name: astec
+  version: 0.0.1
+
+source:
+  path: ../../
+
+build:
+  number: 0
+
+about:
+  home: https://team.inria.fr/morpheme
+  license: GPL
+  license_file: LICENSE.txt
+  summary: ASTEC package
+  dev_url: https://github.com/astec-segmentation/astec
+  doc_source_url: https://github.com/astec-segmentation/astec/blob/master/documentation/doc-astec.pdf
+
+requirements:
+  build:
+    - setuptools
+    - python >=2.7,<3
+  host:
+    - python >=2.7,<3
+  run:
+    - python >=2.7,<3
+    - vt
+    - numpy
+    - scipy
+    - libtiff =0.4.0
+    - h5py
+    - cython

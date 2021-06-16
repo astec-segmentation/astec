@@ -1,0 +1,16 @@
+name: astec
+channels:
+  - defaults
+  - conda-forge
+  - morpheme
+dependencies:
+  - vt
+  - python =2.7
+  - numpy
+  - scipy
+  - matplotlib =2
+  - libtiff =0.4.0
+  - h5py
+  - cython
+  - jupyter
+  - astec
