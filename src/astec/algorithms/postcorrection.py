@@ -8,10 +8,11 @@ import numpy as np
 
 from scipy.stats.stats import pearsonr
 
-import ASTEC.common as common
-import ASTEC.properties as properties
-from ASTEC.CommunFunctions.ImageHandling import imread, imsave, SpatialImage
-import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
+from astec.utils import common
+import properties
+from astec.components.spatial_image import SpatialImage
+from astec.io.image import imread, imsave
+from astec.wrapping import cpp_wrapping
 
 #
 #

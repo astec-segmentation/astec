@@ -6,10 +6,12 @@ import time
 import numpy as np
 from scipy import ndimage as nd
 
-import ASTEC.common as common
-import ASTEC.reconstruction as reconstruction
-from ASTEC.CommunFunctions.ImageHandling import imread, imsave
-import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
+from astec.utils import common
+import ace
+from astec.utils import reconstruction
+from astec.components.spatial_image import SpatialImage
+from astec.io.image import imread, imsave
+from astec.wrapping import cpp_wrapping
 
 #
 #
@@ -950,6 +952,13 @@ def mars_control(experiment, parameters):
         monitoring.to_log_and_console(str(proc) + ": unexpected type for 'parameters' variable: "
                                       + str(type(parameters)))
         sys.exit(1)
+
+    #
+    # copy monitoring information
+    #
+    ace.monitoring.copy(monitoring)
+    common.monitoring.copy(monitoring)
+    reconstruction.monitoring.copy(monitoring)
 
     #
     # make sure that the result directory exists

@@ -9,7 +9,7 @@ import getpass
 import shutil
 import itertools
 
-import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
+import astec.wrapping.cpp_wrapping as cpp_wrapping
 
 #
 #

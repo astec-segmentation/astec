@@ -26,7 +26,9 @@ import os
 from os import path
 import numpy as np
 import gzip
-from .spatial_image import SpatialImage
+# from io import StringIO
+
+from astec.components.spatial_image import SpatialImage
 
 __all__ = ["read_metaimage", "write_metaimage"]
 

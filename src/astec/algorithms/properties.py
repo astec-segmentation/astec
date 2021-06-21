@@ -12,9 +12,10 @@ from scipy import ndimage as nd
 
 from operator import itemgetter
 
-import ASTEC.common as common
-from ASTEC.CommunFunctions.ImageHandling import imread
-import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
+from astec.utils import common
+from astec.components.spatial_image import SpatialImage
+from astec.io.image import imread
+from astec.wrapping import cpp_wrapping
 
 #
 #

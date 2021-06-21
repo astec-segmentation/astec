@@ -5,9 +5,9 @@ import imp
 import operator
 import multiprocessing
 
-import ASTEC.common as common
-from ASTEC.CommunFunctions.ImageHandling import imread
-import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
+from astec.utils import common
+from astec.io.image import imread
+import astec.wrapping.cpp_wrapping as cpp_wrapping
 
 #
 #

@@ -8,8 +8,8 @@ import random
 import math
 import operator
 
-import common
-import properties as properties
+from astec.utils import common
+import properties
 
 #
 #

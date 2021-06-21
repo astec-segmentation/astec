@@ -2,19 +2,18 @@
 
 import os
 import time
-import sys
 from argparse import ArgumentParser
+import sys
 
 #
 # local imports
 # add ASTEC subdirectory
 #
 
-
-import ASTEC.common as common
-import ASTEC.intraregistration as intraregistration
-from ASTEC.CommunFunctions.cpp_wrapping import path_to_vt
-
+import astec.utils.common as common
+import astec.algorithms.postcorrection as post
+import astec.algorithms.properties as properties
+from astec.wrapping.cpp_wrapping import path_to_vt
 
 #
 #
@@ -76,16 +75,6 @@ def _set_options(my_parser):
     my_parser.add_argument('-pp', '--print-param',
                            action='store_const', dest='printParameters',
                            default=False, const=True, help=help)
-    #
-    # specific args
-    #
-    my_parser.add_argument('-t', '--reference-transformation',
-                           action='store', dest='reference_transformation_file', const=None,
-                           help='resampling transformation to be applied to the reference image')
-    my_parser.add_argument('-a', '--reference-angles',
-                           action='store', dest='reference_transformation_angles', const=None,
-                           help='angles wrt to X, Y and Z axis to build the reference resampling transformation,' +
-                                'it is a string formed by the axis name then the angles, eg "X 70 Z -120"')
     return
 
 
@@ -115,7 +104,7 @@ def main():
     # reading command line arguments
     # and update from command line arguments
     #
-    parser = ArgumentParser(description='Fused sequence intra-registration')
+    parser = ArgumentParser(description='Mars')
     _set_options(parser)
     args = parser.parse_args()
 
@@ -123,11 +112,11 @@ def main():
     experiment.update_from_args(args)
 
     if args.printParameters:
-        parameters = intraregistration.IntraRegParameters()
+        parameters = post.PostCorrectionParameters()
         if args.parameterFile is not None and os.path.isfile(args.parameterFile):
             experiment.update_from_parameter_file(args.parameterFile)
             parameters.update_from_parameter_file(args.parameterFile)
-        experiment.print_parameters(directories=['fusion', 'mars', 'astec', 'post', 'intrareg'])
+        experiment.print_parameters(directories=['astec', 'post'])
         parameters.print_parameters()
         sys.exit(0)
 
@@ -145,7 +134,7 @@ def main():
     # 2. the log file name
     #    it creates the logfile dir, if necessary
     #
-    experiment.working_dir = experiment.intrareg_dir
+    experiment.working_dir = experiment.post_dir
     monitoring.set_log_filename(experiment, __file__, start_time)
 
     #
@@ -179,7 +168,8 @@ def main():
     # copy monitoring information into other "files"
     # so the log filename is known
     #
-    intraregistration.monitoring.copy(monitoring)
+    post.monitoring.copy(monitoring)
+    properties.monitoring.copy(monitoring)
 
     #
     # manage parameters
@@ -188,9 +178,8 @@ def main():
     # 3. write parameters into the logfile
     #
 
-    parameters = intraregistration.IntraRegParameters()
+    parameters = post.PostCorrectionParameters()
 
-    parameters.update_from_args(args)
     parameters.update_from_parameter_file(parameter_file)
 
     parameters.write_parameters(monitoring.log_filename)
@@ -198,7 +187,7 @@ def main():
     #
     # processing
     #
-    intraregistration.intraregistration_control(experiment, parameters)
+    post.postcorrection_process(experiment, parameters)
 
     #
     # end of execution
@@ -207,6 +196,9 @@ def main():
     end_time = time.localtime()
     monitoring.update_execution_time(start_time, end_time)
     experiment.update_history_execution_time(__file__, start_time, end_time)
+
+    monitoring.to_console('Total computation time = ' + str(time.mktime(end_time) - time.mktime(start_time)) + ' s')
+
 
 #
 #

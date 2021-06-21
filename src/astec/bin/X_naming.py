@@ -10,11 +10,10 @@ import sys
 # add ASTEC subdirectory
 #
 
-
-import ASTEC.common as common
-import ASTEC.astec as astec
-from ASTEC.CommunFunctions.cpp_wrapping import path_to_vt
-
+import astec.utils.common as common
+import astec.algorithms.naming as naming
+import astec.algorithms.properties as properties
+from astec.wrapping.cpp_wrapping import path_to_vt
 
 #
 #
@@ -31,7 +30,7 @@ def _set_options(my_parser):
     """
     proc = "_set_options"
     if not isinstance(my_parser, ArgumentParser):
-        print(proc + ": argument is not of type ArgumentParser")
+        print proc + ": argument is not of type ArgumentParser"
         return
     #
     # common parameters
@@ -43,6 +42,40 @@ def _set_options(my_parser):
     my_parser.add_argument('-e', '--embryo-rep',
                            action='store', dest='embryo_path', const=None,
                            help='path to the embryo data')
+
+    #
+    # other options
+    #
+
+    my_parser.add_argument('-i', '--input',
+                           action='store', nargs='*', dest='inputFiles', const=None,
+                           help='input pkl or xml lineage file(s)')
+
+    my_parser.add_argument('-o', '--output',
+                           action='store', nargs='*', dest='outputFiles', const=None,
+                           help='output pkl or xml lineage file')
+
+    my_parser.add_argument('-r', '--references',
+                           action='store', nargs='*', dest='referenceFiles', const=None,
+                           help='reference lineage file(s)')
+
+    #
+    # control parameters
+    #
+    my_parser.add_argument('-diagnosis', '--diagnosis',
+                           action='store_const', dest='diagnosis',
+                           default=False, const=True,
+                           help='make diagnosis on input file(s)')
+
+    my_parser.add_argument('-reference-diagnosis', '--reference-diagnosis',
+                           action='store_const', dest='reference_diagnosis',
+                           default=False, const=True,
+                           help='make diagnosis on reference file(s)')
+
+    my_parser.add_argument('-fate', '--fate',
+                           action='store_const', dest='fate',
+                           default=False, const=True,
+                           help='propagate fates on input file(s), naming being already done')
 
     #
     # control parameters
@@ -76,6 +109,7 @@ def _set_options(my_parser):
     my_parser.add_argument('-pp', '--print-param',
                            action='store_const', dest='printParameters',
                            default=False, const=True, help=help)
+
     return
 
 
@@ -105,7 +139,7 @@ def main():
     # reading command line arguments
     # and update from command line arguments
     #
-    parser = ArgumentParser(description='Mars')
+    parser = ArgumentParser(description='Naming')
     _set_options(parser)
     args = parser.parse_args()
 
@@ -113,12 +147,36 @@ def main():
     experiment.update_from_args(args)
 
     if args.printParameters:
-        parameters = astec.AstecParameters()
+        parameters = naming.NamingParameters()
         if args.parameterFile is not None and os.path.isfile(args.parameterFile):
             experiment.update_from_parameter_file(args.parameterFile)
             parameters.update_from_parameter_file(args.parameterFile)
-        experiment.print_parameters(directories=['fusion', 'astec'])
+        experiment.print_parameters(directories=['astec', 'post'])
         parameters.print_parameters()
+        sys.exit(0)
+
+    #
+    # read input file(s) from args, write output file from args
+    #
+
+    time_digits_for_cell_id = experiment.get_time_digits_for_cell_id()
+
+    if args.parameterFile is None:
+        prop = properties.read_dictionary(args.inputFiles, inputpropertiesdict={})
+        if args.diagnosis:
+            diagnosis = properties.DiagnosisParameters()
+            properties.diagnosis(prop, None, diagnosis)
+            naming.diagnosis(prop, time_digits_for_cell_id=time_digits_for_cell_id)
+        if args.reference_diagnosis:
+            neighborhoods = naming.build_neighborhoods(args.inputFiles,
+                                                       time_digits_for_cell_id=time_digits_for_cell_id)
+            discrepancy = naming.check_leftright_consistency(neighborhoods)
+            prop = naming.add_leftright_discrepancy_selection(prop, discrepancy)
+        if args.fate:
+            prop = properties.set_fate_from_names(prop, time_digits_for_cell_id=time_digits_for_cell_id)
+            prop = properties.set_color_from_fate(prop)
+        if args.outputFiles is not None:
+            properties.write_dictionary(args.outputFiles[0], prop)
         sys.exit(0)
 
     #
@@ -135,7 +193,7 @@ def main():
     # 2. the log file name
     #    it creates the logfile dir, if necessary
     #
-    experiment.working_dir = experiment.astec_dir
+    experiment.working_dir = experiment.post_dir
     monitoring.set_log_filename(experiment, __file__, start_time)
 
     #
@@ -143,7 +201,7 @@ def main():
     # and copy parameter file
     #
     experiment.update_history_at_start(__file__, start_time, parameter_file, path_to_vt())
-    experiment.copy_stamped_file(start_time, parameter_file)
+    # experiment.copy_stamped_file(start_time, parameter_file)
 
     #
     # copy monitoring information into other "files"
@@ -154,10 +212,10 @@ def main():
     #
     # write generic information into the log file
     #
-    monitoring.write_configuration()
-    experiment.write_configuration()
+    # monitoring.write_configuration()
+    # experiment.write_configuration()
 
-    experiment.write_parameters(monitoring.log_filename)
+    # experiment.write_parameters(monitoring.log_filename)
 
     ############################################################
     #
@@ -169,7 +227,8 @@ def main():
     # copy monitoring information into other "files"
     # so the log filename is known
     #
-    astec.monitoring.copy(monitoring)
+    naming.monitoring.copy(monitoring)
+    properties.monitoring.copy(monitoring)
 
     #
     # manage parameters
@@ -178,16 +237,30 @@ def main():
     # 3. write parameters into the logfile
     #
 
-    parameters = astec.AstecParameters()
-
+    parameters = naming.NamingParameters()
     parameters.update_from_parameter_file(parameter_file)
-
-    parameters.write_parameters(monitoring.log_filename)
+    # parameters.write_parameters(monitoring.log_filename)
 
     #
     # processing
     #
-    astec.astec_control(experiment, parameters)
+    if args.inputFiles is not None:
+        parameters.inputFiles += args.inputFiles
+    if args.referenceFiles is not None:
+        parameters.referenceFiles += args.referenceFiles
+    if args.reference_diagnosis:
+        parameters.reference_diagnosis = True
+
+    time_digits_for_cell_id = experiment.get_time_digits_for_cell_id()
+
+    if args.fate:
+        prop = properties.read_dictionary(parameters.inputFiles, inputpropertiesdict={})
+        prop = properties.set_fate_from_names(prop, time_digits_for_cell_id=time_digits_for_cell_id)
+        prop = properties.set_color_from_fate(prop)
+        if isinstance(parameters.outputFile, str) is None and args.outputFiles is not None:
+            properties.write_dictionary(args.outputFiles[0], prop)
+    else:
+        naming.naming_process(experiment, parameters)
 
     #
     # end of execution

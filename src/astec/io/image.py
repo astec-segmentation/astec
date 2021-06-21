@@ -1,12 +1,11 @@
 from os.path import exists, splitext, split as psplit, expanduser as expusr
 import os
 
-from .spatial_image import SpatialImage
-from .inrimage import read_inrimage, write_inrimage
-from .metaimage import read_metaimage, write_metaimage
-from .tif import read_tif, write_tif
-from .h5 import read_h5
-
+from astec.components.spatial_image import SpatialImage
+from astec.io.format.h5 import read_h5
+from astec.io.format.inrimage import read_inrimage, write_inrimage
+from astec.io.format.metaimage import read_metaimage, write_metaimage
+from astec.io.format.tif import read_tif, write_tif
 
 def imread(filename):
     """Reads an image file completely into memory.

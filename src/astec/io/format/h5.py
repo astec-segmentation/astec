@@ -1,6 +1,8 @@
-import h5py
-from .spatial_image import SpatialImage
+
 import numpy as np
+import h5py
+
+from astec.components.spatial_image import SpatialImage
 
 def read_h5(path):
     """Read an hdf5 file

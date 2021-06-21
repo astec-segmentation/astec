@@ -9,14 +9,15 @@ import numpy as np
 from scipy import ndimage as nd
 import copy
 
-import ASTEC.common as common
-import ASTEC.ace as ace
-import ASTEC.mars as mars
-import ASTEC.reconstruction as reconstruction
-import ASTEC.properties as properties
-import ASTEC.morphsnakes as morphsnakes
-from ASTEC.CommunFunctions.ImageHandling import imread, imsave, SpatialImage
-import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
+from astec.utils import common
+import ace
+import mars
+from astec.utils import reconstruction
+import properties
+from astec.utils import morphsnakes
+from astec.components.spatial_image import SpatialImage
+from astec.io.image import imread, imsave
+from astec.wrapping import cpp_wrapping
 
 #
 #

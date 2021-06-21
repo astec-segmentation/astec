@@ -1,8 +1,8 @@
-#!/usr/local/bin/python3.7
+#!/usr/bin/env python3
 
 import os
-import sys
 import time
+import sys
 from argparse import ArgumentParser
 
 #
@@ -10,9 +10,9 @@ from argparse import ArgumentParser
 # add ASTEC subdirectory
 #
 
-import ASTEC.common as common
-import ASTEC.manualcorrection as manualcorrection
-from ASTEC.CommunFunctions.cpp_wrapping import path_to_vt
+import astec.utils.common as common
+import astec.algorithms.intraregistration as intraregistration
+from astec.wrapping.cpp_wrapping import path_to_vt
 
 #
 #
@@ -74,27 +74,16 @@ def _set_options(my_parser):
     my_parser.add_argument('-pp', '--print-param',
                            action='store_const', dest='printParameters',
                            default=False, const=True, help=help)
-
     #
     # specific args
     #
-    my_parser.add_argument('-i', '--input-image',
-                           action='store', dest='input_image', const=None,
-                           help='input image')
-    my_parser.add_argument('-o', '--output-image',
-                           action='store', dest='output_image', const=None,
-                           help='output image')
-    my_parser.add_argument('-m', '--modification',
-                           action='store', dest='mapping_file', const=None,
-                           help='text file containing the requested modifications')
-
-    my_parser.add_argument('-nsc', '--number-smallest-cells',
-                           action='store', dest='smallest_cells', default=-1,
-                           help='number of smallest cells whose volume will be displayed')
-    my_parser.add_argument('-nlc', '--number-largest-cells',
-                           action='store', dest='largest_cells', default=-1,
-                           help='number of largest cells whose volume will be displayed')
-
+    my_parser.add_argument('-t', '--reference-transformation',
+                           action='store', dest='reference_transformation_file', const=None,
+                           help='resampling transformation to be applied to the reference image')
+    my_parser.add_argument('-a', '--reference-angles',
+                           action='store', dest='reference_transformation_angles', const=None,
+                           help='angles wrt to X, Y and Z axis to build the reference resampling transformation,' +
+                                'it is a string formed by the axis name then the angles, eg "X 70 Z -120"')
     return
 
 
@@ -124,7 +113,7 @@ def main():
     # reading command line arguments
     # and update from command line arguments
     #
-    parser = ArgumentParser(description='Manual correction')
+    parser = ArgumentParser(description='Fused sequence intra-registration')
     _set_options(parser)
     args = parser.parse_args()
 
@@ -132,13 +121,11 @@ def main():
     experiment.update_from_args(args)
 
     if args.printParameters:
-        parameters = manualcorrection.ManualCorrectionParameters()
+        parameters = intraregistration.IntraRegParameters()
         if args.parameterFile is not None and os.path.isfile(args.parameterFile):
             experiment.update_from_parameter_file(args.parameterFile)
-            parameters.first_time_point = experiment.first_time_point
-            parameters.last_time_point = experiment.first_time_point
             parameters.update_from_parameter_file(args.parameterFile)
-        experiment.print_parameters(directories=['mars', 'astec'])
+        experiment.print_parameters(directories=['fusion', 'mars', 'astec', 'post', 'intrareg'])
         parameters.print_parameters()
         sys.exit(0)
 
@@ -156,7 +143,7 @@ def main():
     # 2. the log file name
     #    it creates the logfile dir, if necessary
     #
-    experiment.working_dir = experiment.astec_dir
+    experiment.working_dir = experiment.intrareg_dir
     monitoring.set_log_filename(experiment, __file__, start_time)
 
     #
@@ -190,8 +177,7 @@ def main():
     # copy monitoring information into other "files"
     # so the log filename is known
     #
-
-    manualcorrection.monitoring.copy(monitoring)
+    intraregistration.monitoring.copy(monitoring)
 
     #
     # manage parameters
@@ -200,25 +186,17 @@ def main():
     # 3. write parameters into the logfile
     #
 
-    parameters = manualcorrection.ManualCorrectionParameters()
+    parameters = intraregistration.IntraRegParameters()
 
-    parameters.first_time_point = experiment.first_time_point
-    parameters.last_time_point = experiment.first_time_point
+    parameters.update_from_args(args)
     parameters.update_from_parameter_file(parameter_file)
 
     parameters.write_parameters(monitoring.log_filename)
 
-    if parameters.mapping_file is not None and len(str(parameters.mapping_file)) > 0:
-        if not os.path.isfile(parameters.mapping_file):
-            monitoring.to_log_and_console("... file '"+str(parameters.mapping_file)+"' does not seem to exist")
-            monitoring.to_log_and_console("\t Exiting")
-            sys.exit(1)
-        experiment.copy_stamped_file(start_time, parameters.mapping_file)
-
     #
     # processing
     #
-    manualcorrection.correction_control(experiment, parameters)
+    intraregistration.intraregistration_control(experiment, parameters)
 
     #
     # end of execution
@@ -227,7 +205,6 @@ def main():
     end_time = time.localtime()
     monitoring.update_execution_time(start_time, end_time)
     experiment.update_history_execution_time(__file__, start_time, end_time)
-
 
 #
 #

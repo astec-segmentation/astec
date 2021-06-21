@@ -23,7 +23,7 @@ setup_kwds = dict(
 
     packages=pkgs,
     package_dir={'': 'src'},
-    python_requires='>=2.7, <3',
+    python_requires='>=3.7',
     setup_requires=[],
     install_requires=[],
     tests_require=[],

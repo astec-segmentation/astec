@@ -1,19 +1,18 @@
-#!/usr/bin/env python3
+#!/usr/local/bin/python3.7
 
 import os
+import sys
 import time
 from argparse import ArgumentParser
-import sys
 
 #
 # local imports
 # add ASTEC subdirectory
 #
 
-import ASTEC.common as common
-import ASTEC.mars as mars
-import ASTEC.ace as ace
-from ASTEC.CommunFunctions.cpp_wrapping import path_to_vt
+import astec.utils.common as common
+import astec.algorithms.manualcorrection as manualcorrection
+from astec.wrapping.cpp_wrapping import path_to_vt
 
 #
 #
@@ -75,6 +74,27 @@ def _set_options(my_parser):
     my_parser.add_argument('-pp', '--print-param',
                            action='store_const', dest='printParameters',
                            default=False, const=True, help=help)
+
+    #
+    # specific args
+    #
+    my_parser.add_argument('-i', '--input-image',
+                           action='store', dest='input_image', const=None,
+                           help='input image')
+    my_parser.add_argument('-o', '--output-image',
+                           action='store', dest='output_image', const=None,
+                           help='output image')
+    my_parser.add_argument('-m', '--modification',
+                           action='store', dest='mapping_file', const=None,
+                           help='text file containing the requested modifications')
+
+    my_parser.add_argument('-nsc', '--number-smallest-cells',
+                           action='store', dest='smallest_cells', default=-1,
+                           help='number of smallest cells whose volume will be displayed')
+    my_parser.add_argument('-nlc', '--number-largest-cells',
+                           action='store', dest='largest_cells', default=-1,
+                           help='number of largest cells whose volume will be displayed')
+
     return
 
 
@@ -104,7 +124,7 @@ def main():
     # reading command line arguments
     # and update from command line arguments
     #
-    parser = ArgumentParser(description='Mars')
+    parser = ArgumentParser(description='Manual correction')
     _set_options(parser)
     args = parser.parse_args()
 
@@ -112,13 +132,13 @@ def main():
     experiment.update_from_args(args)
 
     if args.printParameters:
-        parameters = mars.MarsParameters()
+        parameters = manualcorrection.ManualCorrectionParameters()
         if args.parameterFile is not None and os.path.isfile(args.parameterFile):
             experiment.update_from_parameter_file(args.parameterFile)
             parameters.first_time_point = experiment.first_time_point
             parameters.last_time_point = experiment.first_time_point
             parameters.update_from_parameter_file(args.parameterFile)
-        experiment.print_parameters(directories=['fusion', 'mars'])
+        experiment.print_parameters(directories=['mars', 'astec'])
         parameters.print_parameters()
         sys.exit(0)
 
@@ -136,7 +156,7 @@ def main():
     # 2. the log file name
     #    it creates the logfile dir, if necessary
     #
-    experiment.working_dir = experiment.mars_dir
+    experiment.working_dir = experiment.astec_dir
     monitoring.set_log_filename(experiment, __file__, start_time)
 
     #
@@ -158,7 +178,7 @@ def main():
     monitoring.write_configuration()
     experiment.write_configuration()
 
-    experiment.write_parameters(monitoring.log_filename, directories=['fusion', 'mars'])
+    experiment.write_parameters(monitoring.log_filename)
 
     ############################################################
     #
@@ -170,8 +190,8 @@ def main():
     # copy monitoring information into other "files"
     # so the log filename is known
     #
-    mars.monitoring.copy(monitoring)
-    ace.monitoring.copy(monitoring)
+
+    manualcorrection.monitoring.copy(monitoring)
 
     #
     # manage parameters
@@ -180,7 +200,7 @@ def main():
     # 3. write parameters into the logfile
     #
 
-    parameters = mars.MarsParameters()
+    parameters = manualcorrection.ManualCorrectionParameters()
 
     parameters.first_time_point = experiment.first_time_point
     parameters.last_time_point = experiment.first_time_point
@@ -188,10 +208,17 @@ def main():
 
     parameters.write_parameters(monitoring.log_filename)
 
+    if parameters.mapping_file is not None and len(str(parameters.mapping_file)) > 0:
+        if not os.path.isfile(parameters.mapping_file):
+            monitoring.to_log_and_console("... file '"+str(parameters.mapping_file)+"' does not seem to exist")
+            monitoring.to_log_and_console("\t Exiting")
+            sys.exit(1)
+        experiment.copy_stamped_file(start_time, parameters.mapping_file)
+
     #
     # processing
     #
-    mars.mars_control(experiment, parameters)
+    manualcorrection.correction_control(experiment, parameters)
 
     #
     # end of execution

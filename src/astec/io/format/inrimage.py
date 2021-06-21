@@ -26,7 +26,8 @@ from os import path
 import numpy as np
 import gzip
 from io import StringIO
-from .spatial_image import SpatialImage
+
+from astec.components.spatial_image import SpatialImage
 
 __all__ = ["read_inriheader", "read_inrimage", "write_inrimage"]
 

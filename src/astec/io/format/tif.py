@@ -2,8 +2,9 @@
 
 import tifffile
 import numpy as np
-from .spatial_image import SpatialImage
 import os, os.path, sys, time
+
+from astec.components.spatial_image import SpatialImage
 
 __all__ = []
 __all__ += ["read_tif", "write_tif"]

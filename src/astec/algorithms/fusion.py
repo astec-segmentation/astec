@@ -9,10 +9,10 @@ import subprocess
 import numpy as np
 from scipy import ndimage as nd
 
-import ASTEC.common as common
-from ASTEC.CommunFunctions.ImageHandling import SpatialImage, imread, imsave
-import ASTEC.CommunFunctions.cpp_wrapping as cpp_wrapping
-
+from astec.utils import common
+from astec.components.spatial_image import SpatialImage
+from astec.io.image import imread, imsave
+from astec.wrapping import cpp_wrapping
 
 #
 #

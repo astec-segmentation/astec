@@ -11,10 +11,9 @@ import sys
 #
 
 
-import ASTEC.common as common
-import ASTEC.postcorrection as post
-import ASTEC.properties as properties
-from ASTEC.CommunFunctions.cpp_wrapping import path_to_vt
+import astec.utils.common as common
+import astec.algorithms.astec as astec
+from astec.wrapping.cpp_wrapping import path_to_vt
 
 
 #
@@ -114,11 +113,11 @@ def main():
     experiment.update_from_args(args)
 
     if args.printParameters:
-        parameters = post.PostCorrectionParameters()
+        parameters = astec.AstecParameters()
         if args.parameterFile is not None and os.path.isfile(args.parameterFile):
             experiment.update_from_parameter_file(args.parameterFile)
             parameters.update_from_parameter_file(args.parameterFile)
-        experiment.print_parameters(directories=['astec', 'post'])
+        experiment.print_parameters(directories=['fusion', 'astec'])
         parameters.print_parameters()
         sys.exit(0)
 
@@ -136,7 +135,7 @@ def main():
     # 2. the log file name
     #    it creates the logfile dir, if necessary
     #
-    experiment.working_dir = experiment.post_dir
+    experiment.working_dir = experiment.astec_dir
     monitoring.set_log_filename(experiment, __file__, start_time)
 
     #
@@ -170,8 +169,7 @@ def main():
     # copy monitoring information into other "files"
     # so the log filename is known
     #
-    post.monitoring.copy(monitoring)
-    properties.monitoring.copy(monitoring)
+    astec.monitoring.copy(monitoring)
 
     #
     # manage parameters
@@ -180,7 +178,7 @@ def main():
     # 3. write parameters into the logfile
     #
 
-    parameters = post.PostCorrectionParameters()
+    parameters = astec.AstecParameters()
 
     parameters.update_from_parameter_file(parameter_file)
 
@@ -189,7 +187,7 @@ def main():
     #
     # processing
     #
-    post.postcorrection_process(experiment, parameters)
+    astec.astec_control(experiment, parameters)
 
     #
     # end of execution

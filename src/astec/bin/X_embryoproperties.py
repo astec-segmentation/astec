@@ -11,10 +11,10 @@ from argparse import ArgumentParser
 # add ASTEC subdirectory
 #
 
+import astec.utils.common as common
+import astec.algorithms.properties as properties
+from astec.wrapping.cpp_wrapping import path_to_vt
 
-import ASTEC.common as common
-import ASTEC.properties as properties
-from ASTEC.CommunFunctions.cpp_wrapping import path_to_vt
 #
 #
 #

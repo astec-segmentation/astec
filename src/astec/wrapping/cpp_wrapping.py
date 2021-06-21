@@ -3,8 +3,8 @@ import os
 import sys
 import subprocess
 
-from ASTEC.CommunFunctions.ImageHandling import imread, imsave, SpatialImage
-
+from astec.components.spatial_image import SpatialImage
+from astec.io.image import imread, imsave
 
 ############################################################
 #
